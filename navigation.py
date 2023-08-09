@@ -93,7 +93,7 @@ class RobotController:
     
 class TentaclePlanner:
     
-    def __init__(self,obstacles,dt=0.1,steps=5,alpha=1,beta=0.1):
+    def __init__(self,dt=0.1,steps=5,alpha=1,beta=0.1):
         
         self.dt = dt
         self.steps = steps
@@ -102,11 +102,9 @@ class TentaclePlanner:
         
         self.alpha = alpha
         self.beta = beta
-        
-        self.obstacles = obstacles
     
     # Play a trajectory and evaluate where you'd end up
-    def roll_out(self,v,w,goal_x,goal_y,goal_th,x,y,th):
+    def roll_out(self,v,w,goal_x,goal_y,goal_th,x,y,th, obstacles):
         
         for j in range(self.steps):
         
@@ -114,7 +112,7 @@ class TentaclePlanner:
             y = y + self.dt*v*np.sin(th)
             th = (th + w*self.dt)
             
-            if (self.check_collision(x,y)):
+            if (self.check_collision(x,y,obstacles)):
                 return np.inf
         
         # Wrap angle error -pi,pi
@@ -125,32 +123,97 @@ class TentaclePlanner:
         
         return cost
     
-    def check_collision(self,x,y):
+    def check_collision(self,x,y,obstacles):
+        min_dist = np.min(np.sqrt((x-obstacles[:,0])**2+(y-obstacles[:,1])**2))
         
-        min_dist = np.min(np.sqrt((x-self.obstacles[:,0])**2+(y-self.obstacles[:,1])**2))
-        
-        if (min_dist < 0.1):
+        if (min_dist < 0.05):
             return True
         return False
         
     
     # Choose trajectory that will get you closest to the goal
-    def plan(self,goal_x,goal_y,goal_th,x,y,th):
+    def plan(self,goal_x,goal_y,goal_th,x,y,th,obstacles):
         
         costs =[]
         for v,w in self.tentacles:
-            costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th))
+            costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles))
         
         best_idx = np.argmin(costs)
         best_costs = np.min(costs)
 
         return self.tentacles[best_idx], best_costs
 
+# This is NEW! (We coded this)
+class Map:
+    def __init__(self, width = 2, height = 2, true_obstacles = []):
+        # Constants
+        self.width = width
+        self.height = height
+        self.obstacle_dots = None
+        self.true_obstacles = true_obstacles
+        self.obstacle_size = 0.05
+        
+        self.initialize = True
+
+    def update(self, robot_x, robot_y, robot_th):
+        # Ultrasonic Distance
+        ultrasonic_distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
+        
+        # Generate obstacles
+        self.generate_obstacle(robot_x, robot_y, robot_th, ultrasonic_distance)
+
+    # Simulation
+    def check_ultrasonic(self, robot_x, robot_y, robot_th):
+        # Draw a line from robot to check true_obstacles
+        curr_x = robot_x
+        curr_y = robot_y
+        distance = 0
+        increment = 0.01
+        hit = False
+        
+        while (not hit):
+            # Increment curr_x and curr_y
+            curr_x = curr_x + np.cos(robot_th) * increment
+            curr_y = curr_y + np.sin(robot_th) * increment
+            distance = distance + increment
+
+            # Check curr_x and curr_y
+            min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
+            if (min_dist < self.obstacle_size
+                or np.abs(curr_x) > self.width / 2
+                or np.abs(curr_y) > self.height / 2):
+                print(min_dist)
+                print(curr_x)
+                print(curr_y)
+                print(distance)
+                hit = True
+
+        return distance
+    
+    def generate_obstacle(self, robot_x, robot_y, robot_th, distance):
+        # Append to Obstacle_dots
+        obs_x = robot_x + distance * np.cos(robot_th)
+        obs_y = robot_y + distance * np.sin(robot_th)
+
+        point = np.array([[obs_x, obs_y]])
+
+        if (self.initialize):
+            self.obstacle_dots = np.array(point)
+            self.initialize = False
+        else:
+            print(self.obstacle_dots)
+            print(point)
+            self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
+
+        # Get rid of any obstacles in line of sight 
+        # TODO
+
 obstacles = 2*np.random.rand(20,2)-1
 robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
 controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
-planner = TentaclePlanner(obstacles,dt=0.1,steps=10,alpha=1,beta=1e-9)
-
+planner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
+map = Map(1.5, 1.5, obstacles)
+# print(type(obstacles))
 plt.figure(figsize=(15,9))
 
 poses = []
@@ -158,14 +221,16 @@ velocities = []
 duty_cycle_commands = []
 costs_vec = []
 
-goal_x = 2*np.random.rand()-1
-goal_y = 2*np.random.rand()-1
+goal_x = 1.5*np.random.rand()- 1.5/2
+goal_y = 1.5*np.random.rand()- 1.5/2
 goal_th = 2*np.pi*np.random.rand()-np.pi
 
 for i in range(200):
+    # Map Generation for obstacles
+    map.update(robot.x, robot.y, robot.th)
 
     # Example motion using controller 
-    tentacle,cost = planner.plan(goal_x,goal_y,goal_th,robot.x,robot.y,robot.th)
+    tentacle,cost = planner.plan(goal_x,goal_y,goal_th,robot.x,robot.y,robot.th, map.obstacle_dots)
     v,w=tentacle
     
     duty_cycle_l,duty_cycle_r = controller.drive(v,w,robot.wl,robot.wr)
@@ -181,7 +246,22 @@ for i in range(200):
     
     # Plot robot data
     plt.clf()
-    plt.subplot(1,2,1)
+
+    plt.subplot(1,3,1)
+    plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
+    plt.plot(x,y,'k',marker='+')
+    plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
+    plt.plot(goal_x,goal_y,'x',markersize=5)
+    plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
+
+    plt.plot(map.obstacle_dots[:,0],map.obstacle_dots[:,1],'ko',markersize=5)
+    plt.xlim(-1,1)
+    plt.ylim(-1,1)
+    plt.xlabel('x-position (m)')
+    plt.ylabel('y-position (m)')
+    plt.grid()
+
+    plt.subplot(1,3,2)
     plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
     plt.plot(x,y,'k',marker='+')
     plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
@@ -195,20 +275,20 @@ for i in range(200):
     plt.ylabel('y-position (m)')
     plt.grid()
     
-    plt.subplot(3,2,2)
+    plt.subplot(3,3,3)
     plt.plot(np.arange(i+1)*robot.dt,np.array(duty_cycle_commands))
     plt.xlabel('Time (s)')
     plt.ylabel('Duty cycle')
     plt.grid()
     
-    plt.subplot(3,2,4)
+    plt.subplot(3,3,6)
     plt.plot(np.arange(i+1)*robot.dt,np.array(velocities))
     plt.xlabel('Time (s)')
     plt.ylabel('Wheel $\omega$')
     plt.legend(['Left wheel', 'Right wheel'])
     plt.grid()
 
-    plt.subplot(3,2,6)
+    plt.subplot(3,3,9)
     plt.plot(np.arange(i+1)*robot.dt,np.array(costs_vec))
     plt.xlabel('Time (s)')
     plt.ylabel('Costs')
