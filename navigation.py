@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from IPython import display
 
+
 class DiffDriveRobot:
 
     def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15):
@@ -98,7 +99,7 @@ class TentaclePlanner:
         self.dt = dt
         self.steps = steps
         # Tentacles are possible trajectories to follow
-        self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
+        self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(-0.1,1.0),(-0.1,-1.0),(-0.1,0.5),(-0.1,-0.5),(0.1,0.0),(-0.1,0.0),(0.0,0.0)]
         
         self.alpha = alpha
         self.beta = beta
@@ -141,6 +142,8 @@ class TentaclePlanner:
         best_idx = np.argmin(costs)
         best_costs = np.min(costs)
 
+        print(self.tentacles[best_idx])
+
         return self.tentacles[best_idx], best_costs
 
 # This is NEW! (We coded this)
@@ -182,10 +185,10 @@ class Map:
             if (min_dist < self.obstacle_size
                 or np.abs(curr_x) > self.width / 2
                 or np.abs(curr_y) > self.height / 2):
-                print(min_dist)
-                print(curr_x)
-                print(curr_y)
-                print(distance)
+                # print(min_dist)
+                # print(curr_x)
+                # print(curr_y)
+                # print(distance)
                 hit = True
 
         return distance
@@ -201,8 +204,8 @@ class Map:
             self.obstacle_dots = np.array(point)
             self.initialize = False
         else:
-            print(self.obstacle_dots)
-            print(point)
+            # print(self.obstacle_dots)
+            # print(point)
             self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
 
         # Get rid of any obstacles in line of sight 
@@ -224,6 +227,16 @@ costs_vec = []
 goal_x = 1.5*np.random.rand()- 1.5/2
 goal_y = 1.5*np.random.rand()- 1.5/2
 goal_th = 2*np.pi*np.random.rand()-np.pi
+
+# Needs plotting on map:
+# Map Size
+# Mapped Obstacles (map.obstacles)
+# True Obstacles in different color (obstacles)
+# Goal
+# Start
+# Position
+# RRT Plan (rrt_plan)
+# Unknown vs Known map thing? (Stretch goal)
 
 for i in range(200):
     # Map Generation for obstacles
