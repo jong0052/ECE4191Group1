@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from IPython import display
 
-#from RRTC import RRTC
+from RRTC import RRTC
 from Obstacle import *
 from matplotlib.patches import Circle as C
 import math
@@ -185,8 +185,8 @@ class Map:
             distance = distance + increment
 
             # Check curr_x and curr_y
-            min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
-            if (min_dist < self.obstacle_size
+            # min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
+            if (not self.is_collision_free(curr_x, curr_y)
                 or np.abs(curr_x) > self.width / 2
                 or np.abs(curr_y) > self.height / 2):
                 # print(min_dist)
@@ -197,6 +197,18 @@ class Map:
 
         return distance
     
+    def is_collision_free(self, x, y):
+        """
+        Determine if nearby_node (new_node) is in the collision-free space.
+        """
+        points = np.vstack((x, y)).T
+        for obs in self.true_obstacles:
+            in_collision = obs.is_in_collision_with_points(points)
+            if in_collision:
+                return False
+        
+        return True  # safe
+
     def generate_obstacle(self, robot_x, robot_y, robot_th, distance):
         # Append to Obstacle_dots
         obs_x = robot_x + distance * np.cos(robot_th)
@@ -215,8 +227,7 @@ class Map:
         # Get rid of any obstacles in line of sight 
         # TODO
 
-
-obstacles = 2*np.random.rand(20,2)-1
+obstacles = [Circle(0.5, 0.5, 0.05), Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
 robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
 controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
 planner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
@@ -229,9 +240,9 @@ velocities = []
 duty_cycle_commands = []
 costs_vec = []
 
-goal_x = 1.5*np.random.rand()- 1.5/2
-goal_y = 1.5*np.random.rand()- 1.5/2
-goal_th = 2*np.pi*np.random.rand()-np.pi
+goal_x = 0.6
+goal_y = 0.6
+goal_th = 0
 
 goal = np.array([goal_x, goal_y, goal_th])
 start = np.array([robot.x, robot.y, robot.th])
@@ -249,9 +260,9 @@ start = np.array([robot.x, robot.y, robot.th])
 # RRT Plan (rrt_plan)
 # Unknown vs Known map thing? (Stretch goal)
 
-all_obstacles = []
-for i in range(19):
-    all_obstacles.append(Circle(np.random.rand(1)-1, np.random.rand(1)-1, 0.05))
+# all_obstacles = []
+# for i in range(19):
+#     all_obstacles.append(Circle(np.random.rand(1)-1, np.random.rand(1)-1, 0.05))
 
 for i in range(200):
     # Map Generation for obstacles
@@ -275,7 +286,7 @@ for i in range(200):
     # Plot robot data
     plt.clf()
     ax = plt.gca()
-    for obstacle in all_obstacles:
+    for obstacle in obstacles:
         circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
         ax.add_patch(circle)
 

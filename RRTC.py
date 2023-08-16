@@ -18,7 +18,7 @@ class RRTC:
         """
         RRT Node
         """
-        def __init__(self, x, y, th = None):
+        def __init__(self, x, y, th = 0):
             self.x = x
             self.y = y
             self.th = th
@@ -194,6 +194,7 @@ class RRTC:
             node = node.parent
         path.append([node.x, node.y])
 
+        # Calculate angles
         for i in range(0, len(path)-1):
             node = path[i]
             next_node = path[i+1]
@@ -202,7 +203,7 @@ class RRTC:
             node.append(angle)
         
         last_node = path[len(path)-1]
-        last_node.append(goal[2])
+        last_node.append(self.end.th)
 
         return path
 
@@ -235,32 +236,32 @@ class RRTC:
         return d, theta
 
 
-goal = np.array([14.0, 10.0, 0.0])
-start = np.array([1.0, 1.0, 0.0])
+# goal = np.array([14.0, 10.0, 0.0])
+# start = np.array([1.0, 1.0, 0.0])
 
-all_obstacles = [Circle(11.5, 5, 2), Circle(4.5, 2.5, 2), Circle(4.8, 8, 2.5)]
+# all_obstacles = [Circle(11.5, 5, 2), Circle(4.5, 2.5, 2), Circle(4.8, 8, 2.5)]
 
-rrtc = RRTC(start = start, goal=goal, obstacle_list=all_obstacles, width=16, height = 10, expand_dis=3.0, path_resolution=1)
+# rrtc = RRTC(start = start, goal=goal, obstacle_list=all_obstacles, width=16, height = 10, expand_dis=3.0, path_resolution=1)
 
-plan = rrtc.planning()
-print(plan)
+# plan = rrtc.planning()
+# print(plan)
 
-x_data = np.array([])
-y_data = np.array([])
-th_data = np.array([])
+# x_data = np.array([])
+# y_data = np.array([])
+# th_data = np.array([])
 
-for i in range(len(plan)):
-    x_data = np.append(x_data, plan[i][0])
-    y_data = np.append(y_data, plan[i][1])
-    th_data = np.append(th_data,plan[i][2])
+# for i in range(len(plan)):
+#     x_data = np.append(x_data, plan[i][0])
+#     y_data = np.append(y_data, plan[i][1])
+#     th_data = np.append(th_data,plan[i][2])
 
-fig, ax = plt.subplots()
-# plt.plot(x_data, y_data, "g-")
+# fig, ax = plt.subplots()
+# # plt.plot(x_data, y_data, "g-")
 
-plt.quiver(x_data,y_data,0.1*np.cos(th_data),0.1*np.sin(th_data))
+# plt.quiver(x_data,y_data,0.1*np.cos(th_data),0.1*np.sin(th_data))
 
-for obstacle in all_obstacles:
-    circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
-    ax.add_patch(circle)
-plt.axis([-5, 18, -5, 15])
-plt.show()
+# for obstacle in all_obstacles:
+#     circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
+#     ax.add_patch(circle)
+# plt.axis([-5, 18, -5, 15])
+# plt.show()
