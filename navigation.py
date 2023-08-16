@@ -98,13 +98,16 @@ class RobotController:
     
 class TentaclePlanner:
     
-    def __init__(self,dt=0.1,steps=5,alpha=1,beta=0.1):
+    def __init__(self,dt=0.1,steps=5,alpha=1,beta=0.1, reverse=False):
         
         self.dt = dt
         self.steps = steps
         # Tentacles are possible trajectories to follow
-        self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(-0.1,1.0),(-0.1,-1.0),(-0.1,0.5),(-0.1,-0.5),(0.1,0.0),(-0.1,0.0),(0.0,0.0)]
-        
+        if (reverse):
+            self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0),(-0.1,1.0),(-0.1,-1.0),(-0.1,0.5),(-0.1,-0.5),(-0.1,0.0)]
+        else:
+            self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
+  
         self.alpha = alpha
         self.beta = beta
     
@@ -227,10 +230,19 @@ class Map:
         # Get rid of any obstacles in line of sight 
         # TODO
 
+    def get_obstacle_list(self):
+        obstacle_list = []
+
+        if (not self.initialize):
+            for dot in self.obstacle_dots:
+                obstacle_list.append(Circle(dot[0], dot[1], self.obstacle_size))
+
+        return obstacle_list
+
 obstacles = [Circle(0.5, 0.5, 0.05), Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
 robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
 controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
-planner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
+tentaclePlanner = TentaclePlanner(dt=0.1,steps=3,alpha=1,beta=1e-9)
 map = Map(1.5, 1.5, obstacles)
 # print(type(obstacles))
 plt.figure(figsize=(15,9))
@@ -244,32 +256,24 @@ goal_x = 0.6
 goal_y = 0.6
 goal_th = 0
 
-goal = np.array([goal_x, goal_y, goal_th])
+final_goal = np.array([goal_x, goal_y, goal_th])
 start = np.array([robot.x, robot.y, robot.th])
+expand_dis = 0.05
+path_resolution = 0.01
+rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
+rrt_plan = rrtc.planning()
+rrt_plan_index = 0
 
-#rrtc = RRTC(start = start, goal=goal, obstacle_list=obstacles, width=map.width, height = map.height, expand_dis=0.2, path_resolution=0.05)
-#plan = rrtc.planning()
-
-# Needs plotting on map:
-# Map Size
-# Mapped Obstacles (map.obstacles)
-# True Obstacles in different color (obstacles)
-# Goal
-# Start
-# Position
-# RRT Plan (rrt_plan)
-# Unknown vs Known map thing? (Stretch goal)
-
-# all_obstacles = []
-# for i in range(19):
-#     all_obstacles.append(Circle(np.random.rand(1)-1, np.random.rand(1)-1, 0.05))
+fail_combo = 0
 
 for i in range(200):
     # Map Generation for obstacles
     map.update(robot.x, robot.y, robot.th)
 
+    temp_goal = rrt_plan[rrt_plan_index]
+
     # Example motion using controller 
-    tentacle,cost = planner.plan(goal_x,goal_y,goal_th,robot.x,robot.y,robot.th, map.obstacle_dots)
+    tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
     v,w=tentacle
     
     duty_cycle_l,duty_cycle_r = controller.drive(v,w,robot.wl,robot.wr)
@@ -277,6 +281,27 @@ for i in range(200):
     # Simulate robot motion - send duty cycle command to controller
     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
     
+    # Have we reached temp_goal?
+    if (cost < 1e-2):
+        if (rrt_plan_index < len(rrt_plan) - 1):
+            rrt_plan_index += 1
+            print("New Goal: ")
+            print(rrt_plan[rrt_plan_index])
+
+    # Is car going to get stuck? Replan.
+    if (v == 0 and w == 0):
+        fail_combo += 1
+
+    rrtc.obstacle_list = map.get_obstacle_list()
+
+    if (not rrtc.is_collision_free_path(rrt_plan) or fail_combo > 5):
+        final_goal = np.array([goal_x, goal_y, goal_th])
+        start = np.array([robot.x, robot.y, robot.th])
+
+        rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
+        rrt_plan = rrtc.planning()
+        rrt_plan_index = 0
+
     # Log data
     poses.append([x,y,th])
     duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
@@ -310,8 +335,18 @@ for i in range(200):
     plt.plot(x,y,'k',marker='+')
     plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
     plt.plot(goal_x,goal_y,'x',markersize=5)
-    plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
+    plt.quiver(goal_x,goal_y,0.01*np.cos(goal_th),0.01*np.sin(goal_th))
+   
+    plan_x_data = []
+    plan_y_data = []
+    plan_th_data = []
 
+    for i in range(len(rrt_plan)):
+        plan_x_data = np.append(plan_x_data, rrt_plan[i][0])
+        plan_y_data = np.append(plan_y_data, rrt_plan[i][1])
+        plan_th_data = np.append(plan_th_data, rrt_plan[i][2])
+
+    plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
 
     #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
     plt.xlim(-1,1)

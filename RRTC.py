@@ -174,6 +174,19 @@ class RRTC:
         
         return True  # safe
     
+    def is_collision_free_path(self, path):
+        """
+        Determine if nearby_node (new_node) is in the collision-free space.
+        """
+        for point in path:
+            points = np.vstack((point[0], point[1])).T
+            for obs in self.obstacle_list:
+                in_collision = obs.is_in_collision_with_points(points)
+                if in_collision:
+                    return False
+            
+        return True  # safe
+        
     def generate_final_course(self, start_mid_point, end_mid_point):
         """
         Reconstruct path from start to end node
