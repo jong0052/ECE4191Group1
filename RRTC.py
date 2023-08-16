@@ -6,6 +6,7 @@ from Obstacle import *
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle as C 
 
 import math
 
@@ -18,21 +19,22 @@ class RRTC:
         """
         RRT Node
         """
-        def __init__(self, x, y):
+        def __init__(self, x, y, th = None):
             self.x = x
             self.y = y
+            self.th = th
             self.path_x = []
             self.path_y = []
             self.parent = None
 
-    def __init__(self, start=np.zeros(2),
-                 goal=np.array([120,90]),
+    def __init__(self, start=np.zeros(3),
+                 goal=np.array([120,90,0]),
                  obstacle_list=None,
-                 width = 160,
-                 height=100,
-                 expand_dis=3.0, 
-                 path_resolution=0.5, 
-                 max_points=200):
+                 width  = 160,
+                 height = 100,
+                 expand_dis = 3.0, 
+                 path_resolution = 0.5, 
+                 max_points = 200):
         """
         Setting Parameter
         start:Start Position [x,y]
@@ -42,8 +44,8 @@ class RRTC:
         expand_dis: min distance between random node and closest node in rrt to it
         path_resolion: step size to considered when looking for node to expand
         """
-        self.start = self.Node(start[0], start[1])
-        self.end = self.Node(goal[0], goal[1])
+        self.start = self.Node(start[0], start[1], start[2])
+        self.end = self.Node(goal[0], goal[1], goal[2])
         self.width = width
         self.height = height
         self.expand_dis = expand_dis
@@ -110,11 +112,6 @@ class RRTC:
                     print("Path found!")
                     # I am using nearest_node_index because that would be the path we are connecting.
                     return self.generate_final_course(nearest_node_index, len(self.end_node_list) - 1)
-
-            # 5. Swap start and end trees
-            temp_list = self.end_node_list
-            self.end_node_list = self.start_node_list
-            self.start_node_list = temp_list
 
             # My Comments:
             # I just realized I could had saved a lot of trouble if I ACTUALLY READ IT PROPERLY
@@ -198,6 +195,16 @@ class RRTC:
             node = node.parent
         path.append([node.x, node.y])
 
+        for i in range(0, len(path)-1):
+            node = path[i]
+            next_node = path[i+1]
+
+            angle = math.atan2(next_node[1] - node[1], next_node[0]-node[0])
+            node.append(angle)
+        
+        last_node = path[len(path)-1]
+        last_node.append(goal[2])
+
         return path
 
     def calc_dist_to_goal(self, x, y):
@@ -229,25 +236,32 @@ class RRTC:
         return d, theta
 
 
-# goal = np.array([14.0, 1.0])
-# start = np.array([1.0, 1.0])
+goal = np.array([14.0, 10.0, 0.0])
+start = np.array([1.0, 1.0, 0.0])
 
-# all_obstacles = [Circle(11.5, 5, 2), Circle(4.5, 2.5, 2), Circle(4.8, 8, 2.5)]
+all_obstacles = [Circle(11.5, 5, 2), Circle(4.5, 2.5, 2), Circle(4.8, 8, 2.5)]
 
-# rrtc = RRTC(start = start, goal=goal, obstacle_list=all_obstacles, width=16, height = 10, expand_dis=3.0, path_resolution=1)
+rrtc = RRTC(start = start, goal=goal, obstacle_list=all_obstacles, width=16, height = 10, expand_dis=3.0, path_resolution=1)
 
-# plan = rrtc.planning()
-# print(plan)
+plan = rrtc.planning()
+print(plan)
 
-# x_data = np.array([])
-# y_data = np.array([])
+x_data = np.array([])
+y_data = np.array([])
+th_data = np.array([])
 
-# for i in range(len(plan)):
-#     x_data = np.append(x_data, plan[i][0])
-#     y_data = np.append(y_data, plan[i][1])
+for i in range(len(plan)):
+    x_data = np.append(x_data, plan[i][0])
+    y_data = np.append(y_data, plan[i][1])
+    th_data = np.append(th_data,plan[i][2])
 
-# print(x_data)
-
+fig, ax = plt.subplots()
 # plt.plot(x_data, y_data, "g-")
-# # plt.axis([-14, 14, -10, 10])
-# plt.show()
+
+plt.quiver(x_data,y_data,0.1*np.cos(th_data),0.1*np.sin(th_data))
+
+for obstacle in all_obstacles:
+    circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
+    ax.add_patch(circle)
+plt.axis([-5, 18, -5, 15])
+plt.show()

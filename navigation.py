@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from IPython import display
-
+from RRTC import RRTC
 
 class DiffDriveRobot:
 
@@ -227,6 +227,12 @@ costs_vec = []
 goal_x = 1.5*np.random.rand()- 1.5/2
 goal_y = 1.5*np.random.rand()- 1.5/2
 goal_th = 2*np.pi*np.random.rand()-np.pi
+
+goal = np.array([goal_x, goal_y, goal_th])
+start = np.array([robot.x, robot.y, robot.th])
+
+rrtc = RRTC(start = start, goal=goal, obstacle_list=obstacles, width=map.width, height = map.height, expand_dis=0.2, path_resolution=0.05)
+plan = rrtc.planning()
 
 # Needs plotting on map:
 # Map Size
