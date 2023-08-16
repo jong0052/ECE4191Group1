@@ -1,7 +1,11 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from IPython import display
-from RRTC import RRTC
+
+#from RRTC import RRTC
+from Obstacle import *
+from matplotlib.patches import Circle as C
+import math
 
 class DiffDriveRobot:
 
@@ -211,6 +215,7 @@ class Map:
         # Get rid of any obstacles in line of sight 
         # TODO
 
+
 obstacles = 2*np.random.rand(20,2)-1
 robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
 controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
@@ -231,8 +236,8 @@ goal_th = 2*np.pi*np.random.rand()-np.pi
 goal = np.array([goal_x, goal_y, goal_th])
 start = np.array([robot.x, robot.y, robot.th])
 
-rrtc = RRTC(start = start, goal=goal, obstacle_list=obstacles, width=map.width, height = map.height, expand_dis=0.2, path_resolution=0.05)
-plan = rrtc.planning()
+#rrtc = RRTC(start = start, goal=goal, obstacle_list=obstacles, width=map.width, height = map.height, expand_dis=0.2, path_resolution=0.05)
+#plan = rrtc.planning()
 
 # Needs plotting on map:
 # Map Size
@@ -243,6 +248,10 @@ plan = rrtc.planning()
 # Position
 # RRT Plan (rrt_plan)
 # Unknown vs Known map thing? (Stretch goal)
+
+all_obstacles = []
+for i in range(19):
+    all_obstacles.append(Circle(np.random.rand(1)-1, np.random.rand(1)-1, 0.05))
 
 for i in range(200):
     # Map Generation for obstacles
@@ -265,8 +274,13 @@ for i in range(200):
     
     # Plot robot data
     plt.clf()
+    ax = plt.gca()
+    for obstacle in all_obstacles:
+        circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
+        ax.add_patch(circle)
 
-    plt.subplot(1,3,1)
+
+    #plt.subplot(1,3,1)
     plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
     plt.plot(x,y,'k',marker='+')
     plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
@@ -280,38 +294,39 @@ for i in range(200):
     plt.ylabel('y-position (m)')
     plt.grid()
 
-    plt.subplot(1,3,2)
+    #plt.subplot(1,3,2)
     plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
     plt.plot(x,y,'k',marker='+')
     plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
     plt.plot(goal_x,goal_y,'x',markersize=5)
     plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
-    
-    plt.plot(obstacles[:,0],obstacles[:,1],'ko',markersize=15)
+
+
+    #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
     plt.xlim(-1,1)
     plt.ylim(-1,1)
     plt.xlabel('x-position (m)')
     plt.ylabel('y-position (m)')
     plt.grid()
     
-    plt.subplot(3,3,3)
-    plt.plot(np.arange(i+1)*robot.dt,np.array(duty_cycle_commands))
-    plt.xlabel('Time (s)')
-    plt.ylabel('Duty cycle')
-    plt.grid()
+    #plt.subplot(3,3,3)
+    #plt.plot(np.arange(i+1)*robot.dt,np.array(duty_cycle_commands))
+    #plt.xlabel('Time (s)')
+    #plt.ylabel('Duty cycle')
+    #plt.grid()
     
-    plt.subplot(3,3,6)
-    plt.plot(np.arange(i+1)*robot.dt,np.array(velocities))
-    plt.xlabel('Time (s)')
-    plt.ylabel('Wheel $\omega$')
-    plt.legend(['Left wheel', 'Right wheel'])
-    plt.grid()
+    #plt.subplot(3,3,6)
+    #plt.plot(np.arange(i+1)*robot.dt,np.array(velocities))
+    #plt.xlabel('Time (s)')
+    #plt.ylabel('Wheel $\omega$')
+    #plt.legend(['Left wheel', 'Right wheel'])
+    #plt.grid()
 
-    plt.subplot(3,3,9)
-    plt.plot(np.arange(i+1)*robot.dt,np.array(costs_vec))
-    plt.xlabel('Time (s)')
-    plt.ylabel('Costs')
-    plt.grid()
+    #plt.subplot(3,3,9)
+    #plt.plot(np.arange(i+1)*robot.dt,np.array(costs_vec))
+    #plt.xlabel('Time (s)')
+    #plt.ylabel('Costs')
+    #plt.grid()
 
     plt.pause(0.05)
     plt.show(block=False)

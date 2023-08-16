@@ -1,6 +1,5 @@
 # RRT Algorithm
-import meshcat.geometry as g
-import meshcat.transformations as tf
+
 from Obstacle import *
 
 import numpy as np
