@@ -260,7 +260,7 @@ final_goal = np.array([goal_x, goal_y, goal_th])
 start = np.array([robot.x, robot.y, robot.th])
 expand_dis = 0.05
 path_resolution = 0.01
-rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
+rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
 rrt_plan = rrtc.planning()
 rrt_plan_index = 0
 
@@ -299,8 +299,11 @@ for i in range(200):
         start = np.array([robot.x, robot.y, robot.th])
 
         rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
-        rrt_plan = rrtc.planning()
-        rrt_plan_index = 0
+        new_rrt_plan = rrtc.planning()
+
+        if (len(new_rrt_plan) > 0):
+            rrt_plan = new_rrt_plan
+            rrt_plan_index = 0
 
     # Log data
     poses.append([x,y,th])
@@ -376,7 +379,6 @@ for i in range(200):
 
     plt.pause(0.05)
     plt.show(block=False)
-    
     
     display.clear_output(wait=True)
     display.display(plt.gcf())

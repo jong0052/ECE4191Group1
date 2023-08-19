@@ -121,7 +121,7 @@ class RRTC:
             # Oof.
         #ENDTODO ----------------------------------------------------------------------------------------------
             
-        return None  # cannot find path
+        return []  # cannot find path
     
     # ------------------------------DO NOT change helper methods below ----------------------------
     def steer(self, from_node, to_node, extend_length=float("inf")):
