@@ -5,14 +5,15 @@ class Polygon:
     """
     Obstacles are represented as polygons
     Polygons are defined as an array with n rows (vertices) and 2 columns
-    
+
+    Points needs to be defined in Clockwise fashion
     """
 
     def __init__(self, vertices=np.zeros((4,2))):
         self.vertices = vertices
         self.inner_vertices = None
 
-    def compute_distance_point_to_polygon(self, point_q, ccw):
+    def compute_distance_point_to_polygon(self, point_q,ccw):
         """
         Compute distance from point_q to the closest point in the polygon
 
@@ -110,12 +111,8 @@ class Polygon:
                          < polygonArea(polies[0][:, 0], polies[1][:, 1], num_points))]
         return self.inner_vertices
 
-    def to_display_format(self, screen_height):
-        coordinates = [coordinates_to_pygame(v, screen_height) for v in self.vertices[0:-1]]
-        return coordinates
 
-
-    def is_in_collision_with_points(self, points, min_dist=2.5):
+    def is_in_collision_with_points(self, points, min_dist=0.01):
         # First check if point is within polygon
         points_in_collision = []
         
@@ -131,14 +128,19 @@ class Polygon:
                     count_collisions += 1
 
             if count_collisions % 2 == 1:
-                Qpoints_in_collision.append(point)
+                points_in_collision.append(point)
 
         if len(points_in_collision):
             return True
 
         # Second check if point is in collision with edges
-        dist, _ = self.compute_distance_point_to_polygon(points[-1])
+        print(points)
+        dist, _ = self.compute_distance_point_to_polygon(points[-1], False)
         if dist < min_dist:
+            print("Collision found!")
+            print(dist)
+            print(min_dist)
+            print("oof")
             return True
 
         return False
@@ -165,15 +167,14 @@ class Rectangle(Polygon):
         self.origin = origin
 
         v1 = origin
-        v2 = origin + np.array([width, 0])
-        v3 = origin + np.array([width, -height])
-        v4 = origin + np.array([0, -height])
+        v4 = origin + np.array([width, 0])
+        v2 = origin + np.array([width, height])
+        v3 = origin + np.array([0, height])
 
         Polygon.__init__(self, vertices=np.array([v1, v2, v3, v4]))
 
     def to_display_format(self, screen_height):
-        py_origin = coordinates_to_pygame(self.origin, screen_height)
-        return (py_origin[0], py_origin[1], self.width, self.height)
+        return (self.origin[0], self.origin[1], self.width, self.height)
 
     def plot_obstacle(self):
         return super().plot_obstacle()
