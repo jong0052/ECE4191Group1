@@ -5,18 +5,19 @@ from IPython import display
 from RRTC import RRTC
 from Obstacle import *
 from matplotlib.patches import Circle as C
+from matplotlib.patches import Rectangle as R
 import math
 import serial
 import time
 
 class DiffDriveRobot:
 
-    def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15):
+    def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
 
         # States
-        self.x = 0.0  # x-position
-        self.y = 0.0  # y-position
-        self.th = 0.0  # orientation
+        self.x = x  # x-position
+        self.y = y  # y-position
+        self.th = th  # orientation
 
         # Wheel States (Wheel Velocity, Inputs)
         self.wl = 0.0  # rotational velocity left wheel
@@ -302,8 +303,11 @@ class SerialData:
             self.wr_goal = wr_goal
 
 if __name__ == '__main__':
-    obstacles = [Circle(0.5, 0.5, 0.05), Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
+
+
+    obstacles = [Rectangle((-0.4,0),0.9,0.1)]
+    #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
+    robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
     controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.5, 1.5, obstacles)
@@ -341,6 +345,8 @@ if __name__ == '__main__':
 
         temp_goal = rrt_plan[rrt_plan_index]
 
+        print(map.obstacle_dots)
+
         # Example motion using controller 
         tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
         v,w=tentacle
@@ -363,10 +369,11 @@ if __name__ == '__main__':
 
         rrtc.obstacle_list = map.get_obstacle_list()
 
-        if (not rrtc.is_collision_free_path(rrt_plan) or fail_combo > 500000):
+        if (not rrtc.is_collision_free_path(rrt_plan)):
             final_goal = np.array([goal_x, goal_y, goal_th])
             start = np.array([robot.x, robot.y, robot.th])
 
+            print("why are u runnin")
             rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
             new_rrt_plan = rrtc.planning()
 
@@ -389,8 +396,11 @@ if __name__ == '__main__':
             plt.clf()
             ax = plt.gca()
             for obstacle in obstacles:
-                circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
-                ax.add_patch(circle)
+                if isinstance(obstacle,Circle):
+                    patch = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
+                elif isinstance(obstacle,Rectangle):
+                    patch = R((obstacle.origin[0],obstacle.origin[1]),obstacle.width,obstacle.height,fill=True,edgecolor='pink')
+                ax.add_patch(patch)
 
             #plt.subplot(1,3,1)
             plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
