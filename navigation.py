@@ -6,6 +6,8 @@ from RRTC import RRTC
 from Obstacle import *
 from matplotlib.patches import Circle as C
 import math
+import serial
+import time
 
 class DiffDriveRobot:
 
@@ -53,10 +55,14 @@ class DiffDriveRobot:
         return v, w
 
     # Kinematic motion model
-    def pose_update(self, duty_cycle_l, duty_cycle_r):
+    def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
 
-        self.wl = self.motor_simulator(self.wl, duty_cycle_l)
-        self.wr = self.motor_simulator(self.wr, duty_cycle_r)
+        if (simulation):
+            self.wl = self.motor_simulator(self.wl, duty_cycle_l)
+            self.wr = self.motor_simulator(self.wr, duty_cycle_r)
+        else:
+            self.wl = wl
+            self.wr = wr
 
         v, w = self.base_velocity(self.wl, self.wr)
 
@@ -94,7 +100,7 @@ class RobotController:
         duty_cycle_l,self.e_sum_l = self.p_control(wl_desired,wl,self.e_sum_l)
         duty_cycle_r,self.e_sum_r = self.p_control(wr_desired,wr,self.e_sum_r)
         
-        return duty_cycle_l, duty_cycle_r
+        return duty_cycle_l, duty_cycle_r, wl_desired, wr_desired
     
 class TentaclePlanner:
     
@@ -106,7 +112,11 @@ class TentaclePlanner:
         if (reverse):
             self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0),(-0.1,1.0),(-0.1,-1.0),(-0.1,0.5),(-0.1,-0.5),(-0.1,0.0)]
         else:
-            self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
+            # self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
+            self.tentacles = []
+            for v in range(0, 1, 0.1):
+                for w in range(0, 1, 0.1):
+                    self.tentacles.append((v, w))
   
         self.alpha = alpha
         self.beta = beta
@@ -174,29 +184,34 @@ class Map:
 
     # Simulation
     def check_ultrasonic(self, robot_x, robot_y, robot_th):
-        # Draw a line from robot to check true_obstacles
-        curr_x = robot_x
-        curr_y = robot_y
-        distance = 0
-        increment = 0.01
-        hit = False
-        
-        while (not hit):
-            # Increment curr_x and curr_y
-            curr_x = curr_x + np.cos(robot_th) * increment
-            curr_y = curr_y + np.sin(robot_th) * increment
-            distance = distance + increment
 
-            # Check curr_x and curr_y
-            # min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
-            if (not self.is_collision_free(curr_x, curr_y)
-                or np.abs(curr_x) > self.width / 2
-                or np.abs(curr_y) > self.height / 2):
-                # print(min_dist)
-                # print(curr_x)
-                # print(curr_y)
-                # print(distance)
-                hit = True
+        if simulation:
+            # Draw a line from robot to check true_obstacles
+            curr_x = robot_x
+            curr_y = robot_y
+            distance = 0
+            increment = 0.01
+            hit = False
+            
+            while (not hit):
+                # Increment curr_x and curr_y
+                curr_x = curr_x + np.cos(robot_th) * increment
+                curr_y = curr_y + np.sin(robot_th) * increment
+                distance = distance + increment
+
+                # Check curr_x and curr_y
+                # min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
+                if (not self.is_collision_free(curr_x, curr_y)
+                    or np.abs(curr_x) > self.width / 2
+                    or np.abs(curr_y) > self.height / 2):
+                    # print(min_dist)
+                    # print(curr_x)
+                    # print(curr_y)
+                    # print(distance)
+                    hit = True
+        else:
+            # TODO: Ultrasonic Reader
+            distance = 0
 
         return distance
     
@@ -239,148 +254,188 @@ class Map:
 
         return obstacle_list
 
-obstacles = [Circle(0.5, 0.5, 0.05), Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
-controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
-tentaclePlanner = TentaclePlanner(dt=0.1,steps=3,alpha=1,beta=1e-9)
-map = Map(1.5, 1.5, obstacles)
-# print(type(obstacles))
-plt.figure(figsize=(15,9))
+class Serializer:
+    def __init__(self):
+        self.ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+        self.ser.reset_input_buffer()
 
-poses = []
-velocities = []
-duty_cycle_commands = []
-costs_vec = []
+    def read(self):
+        line = self.ser.readline().decode('utf-8').rstrip()
+        serial_data = self.decode_string(line)
 
-goal_x = 0.6
-goal_y = 0.6
-goal_th = 0
-
-final_goal = np.array([goal_x, goal_y, goal_th])
-start = np.array([robot.x, robot.y, robot.th])
-expand_dis = 0.05
-path_resolution = 0.01
-rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
-rrt_plan = rrtc.planning()
-rrt_plan_index = 0
-
-fail_combo = 0
-
-for i in range(200):
-    # Map Generation for obstacles
-    map.update(robot.x, robot.y, robot.th)
-
-    temp_goal = rrt_plan[rrt_plan_index]
-
-    # Example motion using controller 
-    tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
-    v,w=tentacle
+        return serial_data
     
-    duty_cycle_l,duty_cycle_r = controller.drive(v,w,robot.wl,robot.wr)
+    def write(self, line):
+        self.ser.write(line)
+
+    def decode_string(self,input_string):
+        # Extracting numbers from the input_string using string manipulation
+        # Line Format: "Wheels: [wl, wr]"
+        if not input_string.startswith("Wheels"):
+            raise ValueError("Input string must start with 'Wheels'")
     
-    # Simulate robot motion - send duty cycle command to controller
-    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
+        try:
+            start_idx = input_string.index("[") + 1
+            end_idx = input_string.index("]")
+            wl, wr = map(int, input_string[start_idx:end_idx].split(','))
+        except ValueError:
+            raise ValueError("Invalid input format")
+
+        # Creating a SerialData object with the extracted numbers
+        serial_data = SerialData(wl=wl, wr=wr)
+        return serial_data
+
+class SerialData:
+    def __init__(self, wl=0, wr=0, wl_goal=0, wr_goal=0):
+        self.update(wl, wr, wl_goal, wr_goal)
+
+    def update(self, wl=None, wr=None, wl_goal=None, wr_goal=None):
+        if wl is not None:
+            self.wl = wl
+        if wr is not None:
+            self.wr = wr
+        if wl_goal is not None:
+            self.wl_goal = wl_goal
+        if wr_goal is not None:
+            self.wr_goal = wr_goal
+
+if __name__ == '__main__':
+    obstacles = [Circle(0.5, 0.5, 0.05), Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
+    robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15)
+    controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
+    tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
+    map = Map(1.5, 1.5, obstacles)
+
+    plt.figure(figsize=(15,9))
+
+    poses = []
+    velocities = []
+    duty_cycle_commands = []
+    costs_vec = []
+
+    goal_x = 0.6
+    goal_y = 0.6
+    goal_th = 0
+
+    final_goal = np.array([goal_x, goal_y, goal_th])
+    start = np.array([robot.x, robot.y, robot.th])
+    expand_dis = 0.05
+    path_resolution = 0.01
+    rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
+    rrt_plan = rrtc.planning()
+    rrt_plan_index = 0
+
+    fail_combo = 0
+
+    plotting = True
+    simulation = True
     
-    # Have we reached temp_goal?
-    if (cost < 1e-2):
-        if (rrt_plan_index < len(rrt_plan) - 1):
-            rrt_plan_index += 1
-            print("New Goal: ")
-            print(rrt_plan[rrt_plan_index])
+    if (not simulation):
+        serializer = Serializer()
 
-    # Is car going to get stuck? Replan.
-    if (v == 0 and w == 0):
-        fail_combo += 1
+    while True:
+        # Map Generation for obstacles
+        map.update(robot.x, robot.y, robot.th)
 
-    rrtc.obstacle_list = map.get_obstacle_list()
+        temp_goal = rrt_plan[rrt_plan_index]
 
-    if (not rrtc.is_collision_free_path(rrt_plan) or fail_combo > 5):
-        final_goal = np.array([goal_x, goal_y, goal_th])
-        start = np.array([robot.x, robot.y, robot.th])
+        # Example motion using controller 
+        tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
+        v,w=tentacle
+        
+        duty_cycle_l,duty_cycle_r,wl,wr = controller.drive(v,w,robot.wl,robot.wr)
+        
+        # Simulate robot motion - send duty cycle command to controller
+        x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r,wl,wr)
+        
+        # Have we reached temp_goal?
+        if (cost < 1e-2):
+            if (rrt_plan_index < len(rrt_plan) - 1):
+                rrt_plan_index += 1
+                print("New Goal: ")
+                print(rrt_plan[rrt_plan_index])
 
-        rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
-        new_rrt_plan = rrtc.planning()
+        # Is car going to get stuck? Replan.
+        if (v == 0 and w == 0):
+            fail_combo += 1
 
-        if (len(new_rrt_plan) > 0):
-            rrt_plan = new_rrt_plan
-            rrt_plan_index = 0
+        rrtc.obstacle_list = map.get_obstacle_list()
 
-    # Log data
-    poses.append([x,y,th])
-    duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
-    velocities.append([robot.wl,robot.wr])
-    costs_vec.append(cost)
-    
-    # Plot robot data
-    plt.clf()
-    ax = plt.gca()
-    for obstacle in obstacles:
-        circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
-        ax.add_patch(circle)
+        if (not rrtc.is_collision_free_path(rrt_plan) or fail_combo > 5):
+            final_goal = np.array([goal_x, goal_y, goal_th])
+            start = np.array([robot.x, robot.y, robot.th])
 
+            rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
+            new_rrt_plan = rrtc.planning()
 
-    #plt.subplot(1,3,1)
-    plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
-    plt.plot(x,y,'k',marker='+')
-    plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
-    plt.plot(goal_x,goal_y,'x',markersize=5)
-    plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
+            if (len(new_rrt_plan) > 0):
+                rrt_plan = new_rrt_plan
+                rrt_plan_index = 0
 
-    plt.plot(map.obstacle_dots[:,0],map.obstacle_dots[:,1],'ko',markersize=5)
-    plt.xlim(-1,1)
-    plt.ylim(-1,1)
-    plt.xlabel('x-position (m)')
-    plt.ylabel('y-position (m)')
-    plt.grid()
+        # Log data
+        poses.append([x,y,th])
+        duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
+        velocities.append([robot.wl,robot.wr])
+        costs_vec.append(cost)
+        
+        if not simulation:
+            # Read Data 
+            serializer.read()
 
-    #plt.subplot(1,3,2)
-    plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
-    plt.plot(x,y,'k',marker='+')
-    plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
-    plt.plot(goal_x,goal_y,'x',markersize=5)
-    plt.quiver(goal_x,goal_y,0.01*np.cos(goal_th),0.01*np.sin(goal_th))
-   
-    plan_x_data = []
-    plan_y_data = []
-    plan_th_data = []
+        if plotting:
+            # Plot robot data
+            plt.clf()
+            ax = plt.gca()
+            for obstacle in obstacles:
+                circle = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
+                ax.add_patch(circle)
 
-    for i in range(len(rrt_plan)):
-        plan_x_data = np.append(plan_x_data, rrt_plan[i][0])
-        plan_y_data = np.append(plan_y_data, rrt_plan[i][1])
-        plan_th_data = np.append(plan_th_data, rrt_plan[i][2])
+            #plt.subplot(1,3,1)
+            plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
+            plt.plot(x,y,'k',marker='+')
+            plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
+            plt.plot(goal_x,goal_y,'x',markersize=5)
+            plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
 
-    plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
+            plt.plot(map.obstacle_dots[:,0],map.obstacle_dots[:,1],'ko',markersize=5)
+            plt.xlim(-1,1)
+            plt.ylim(-1,1)
+            plt.xlabel('x-position (m)')
+            plt.ylabel('y-position (m)')
+            plt.grid()
 
-    #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
-    plt.xlim(-1,1)
-    plt.ylim(-1,1)
-    plt.xlabel('x-position (m)')
-    plt.ylabel('y-position (m)')
-    plt.grid()
-    
-    #plt.subplot(3,3,3)
-    #plt.plot(np.arange(i+1)*robot.dt,np.array(duty_cycle_commands))
-    #plt.xlabel('Time (s)')
-    #plt.ylabel('Duty cycle')
-    #plt.grid()
-    
-    #plt.subplot(3,3,6)
-    #plt.plot(np.arange(i+1)*robot.dt,np.array(velocities))
-    #plt.xlabel('Time (s)')
-    #plt.ylabel('Wheel $\omega$')
-    #plt.legend(['Left wheel', 'Right wheel'])
-    #plt.grid()
+            #plt.subplot(1,3,2)
+            plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
+            plt.plot(x,y,'k',marker='+')
+            plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
+            plt.plot(goal_x,goal_y,'x',markersize=5)
+            plt.quiver(goal_x,goal_y,0.01*np.cos(goal_th),0.01*np.sin(goal_th))
+        
+            plan_x_data = []
+            plan_y_data = []
+            plan_th_data = []
 
-    #plt.subplot(3,3,9)
-    #plt.plot(np.arange(i+1)*robot.dt,np.array(costs_vec))
-    #plt.xlabel('Time (s)')
-    #plt.ylabel('Costs')
-    #plt.grid()
+            for i in range(len(rrt_plan)):
+                plan_x_data = np.append(plan_x_data, rrt_plan[i][0])
+                plan_y_data = np.append(plan_y_data, rrt_plan[i][1])
+                plan_th_data = np.append(plan_th_data, rrt_plan[i][2])
 
-    plt.pause(0.05)
-    plt.show(block=False)
-    
-    display.clear_output(wait=True)
-    display.display(plt.gcf())
-    
-    
+            plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
+
+            #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
+            plt.xlim(-1,1)
+            plt.ylim(-1,1)
+            plt.xlabel('x-position (m)')
+            plt.ylabel('y-position (m)')
+            plt.grid()
+
+            plt.pause(0.05)
+            plt.show(block=False)
+            
+            display.clear_output(wait=True)
+            display.display(plt.gcf())
+        
+        time.sleep(1)
+        
+        
+        
