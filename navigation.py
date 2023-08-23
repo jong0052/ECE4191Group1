@@ -112,11 +112,13 @@ class TentaclePlanner:
         if (reverse):
             self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0),(-0.1,1.0),(-0.1,-1.0),(-0.1,0.5),(-0.1,-0.5),(-0.1,0.0)]
         else:
-            # self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
+            #self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
             self.tentacles = []
-            for v in range(0, 1, 0.1):
-                for w in range(0, 1, 0.1):
-                    self.tentacles.append((v, w))
+            for v in range(0,11, 1):
+                for w in range(-10,11, 1):
+                    self.tentacles.append((v/100, w/10))
+
+            print(self.tentacles)
   
         self.alpha = alpha
         self.beta = beta
@@ -361,7 +363,7 @@ if __name__ == '__main__':
 
         rrtc.obstacle_list = map.get_obstacle_list()
 
-        if (not rrtc.is_collision_free_path(rrt_plan) or fail_combo > 5):
+        if (not rrtc.is_collision_free_path(rrt_plan) or fail_combo > 500000):
             final_goal = np.array([goal_x, goal_y, goal_th])
             start = np.array([robot.x, robot.y, robot.th])
 
@@ -435,7 +437,7 @@ if __name__ == '__main__':
             display.clear_output(wait=True)
             display.display(plt.gcf())
         
-        time.sleep(1)
+        # time.sleep(1)
         
         
         
