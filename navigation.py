@@ -95,13 +95,13 @@ class RobotController:
         
     def drive(self,v_desired,w_desired,wl,wr):
         
-        wl_desired = (v_desired + self.l*w_desired/2)/self.r
-        wr_desired = (v_desired - self.l*w_desired/2)/self.r
+        wl_goal = (v_desired + self.l*w_desired/2)/self.r
+        wr_goal = (v_desired - self.l*w_desired/2)/self.r
         
-        duty_cycle_l,self.e_sum_l = self.p_control(wl_desired,wl,self.e_sum_l)
-        duty_cycle_r,self.e_sum_r = self.p_control(wr_desired,wr,self.e_sum_r)
+        duty_cycle_l,self.e_sum_l = self.p_control(wl_goal,wl,self.e_sum_l)
+        duty_cycle_r,self.e_sum_r = self.p_control(wr_goal,wr,self.e_sum_r)
         
-        return duty_cycle_l, duty_cycle_r, wl_desired, wr_desired
+        return duty_cycle_l, duty_cycle_r, wl_goal, wr_goal
     
 class TentaclePlanner:
     
@@ -261,6 +261,7 @@ class Serializer:
     def __init__(self):
         self.ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
         self.ser.reset_input_buffer()
+        self.data = SerialData()
 
     def read(self):
         line = self.ser.readline().decode('utf-8').rstrip()
@@ -268,8 +269,8 @@ class Serializer:
 
         return serial_data
     
-    def write(self, line):
-        self.ser.write(line)
+    def write(self):
+        self.ser.write(self.encode_string(self.data))
 
     def decode_string(self,input_string):
         # Extracting numbers from the input_string using string manipulation
@@ -280,31 +281,37 @@ class Serializer:
         try:
             start_idx = input_string.index("[") + 1
             end_idx = input_string.index("]")
-            wl, wr = map(int, input_string[start_idx:end_idx].split(','))
+            wl_current, wr_current, wl_goal, wr_goal = map(int, input_string[start_idx:end_idx].split(','))
         except ValueError:
             raise ValueError("Invalid input format")
 
         # Creating a SerialData object with the extracted numbers
-        serial_data = SerialData(wl=wl, wr=wr)
-        return serial_data
+        self.data.update(wl_current=wl_current, wr_current=wr_current, wl_goal=wl_goal, wr_goal=wr_goal)
+        return self.data
+    
+    def encode_string(self):
+        return  f"Wheels: [{self.data.wl},{self.data.wr},{self.data.wl_goal},{self.data.wr_goal}]"
 
 class SerialData:
-    def __init__(self, wl=0, wr=0, wl_goal=0, wr_goal=0):
-        self.update(wl, wr, wl_goal, wr_goal)
+    """
+    Data for Serial Connection between Arduino and PI
 
-    def update(self, wl=None, wr=None, wl_goal=None, wr_goal=None):
-        if wl is not None:
-            self.wl = wl
-        if wr is not None:
-            self.wr = wr
+    All Velocities in RPM
+    """
+    def __init__(self, wl_current=0, wr_current=0, wl_goal=0, wr_goal=0):
+        self.update(wl_current, wr_current, wl_goal, wr_goal)
+
+    def update(self, wl_current=None, wr_current=None, wl_goal=None, wr_goal=None):
+        if wl_current is not None:
+            self.wl_current = wl_current
+        if wr_current is not None:
+            self.wr_current = wr_current
         if wl_goal is not None:
             self.wl_goal = wl_goal
         if wr_goal is not None:
             self.wr_goal = wr_goal
 
 if __name__ == '__main__':
-
-
     obstacles = [Rectangle((-0.4,0),0.9,0.1)]
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
     robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
@@ -351,10 +358,10 @@ if __name__ == '__main__':
         tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
         v,w=tentacle
         
-        duty_cycle_l,duty_cycle_r,wl,wr = controller.drive(v,w,robot.wl,robot.wr)
+        duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
         
         # Simulate robot motion - send duty cycle command to controller
-        x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r,wl,wr)
+        x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r,wl_goal,wr_goal)
         
         # Have we reached temp_goal?
         if (cost < 1e-2):
@@ -389,7 +396,11 @@ if __name__ == '__main__':
         
         if not simulation:
             # Read Data 
-            serializer.read()
+            # serializer.read()
+            wl_goal_rpm = wl_goal * 60 / (2 * math.pi)
+            wr_goal_rpm = wr_goal * 60 / (2 * math.pi)
+            serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
+            serializer.write()
 
         if plotting:
             # Plot robot data
