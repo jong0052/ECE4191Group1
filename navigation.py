@@ -340,8 +340,8 @@ if __name__ == '__main__':
 
     fail_combo = 0
 
-    plotting = False
-    simulation = False
+    plotting = True
+    simulation = True
     
     if (not simulation):
         serializer = Serializer()
@@ -404,7 +404,7 @@ if __name__ == '__main__':
             # serializer.read()
             wl_goal_rpm = wl_goal * 60 / (2 * math.pi)
             wr_goal_rpm = wr_goal * 60 / (2 * math.pi)
-            serializer.data.update(wl_goal=50, wr_goal=0)
+            serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
             serializer.write()
             serializer.read()
 
