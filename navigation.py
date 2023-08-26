@@ -119,7 +119,7 @@ class TentaclePlanner:
                 for w in range(-10,11, 1):
                     self.tentacles.append((v/100, w/10))
 
-            print(self.tentacles)
+            # print(self.tentacles)
   
         self.alpha = alpha
         self.beta = beta
@@ -162,7 +162,7 @@ class TentaclePlanner:
         best_idx = np.argmin(costs)
         best_costs = np.min(costs)
 
-        print(self.tentacles[best_idx])
+        # print(self.tentacles[best_idx])
 
         return self.tentacles[best_idx], best_costs
 
@@ -270,7 +270,7 @@ class Serializer:
         return serial_data
     
     def write(self):
-        self.ser.write(self.encode_string(self.data))
+        self.ser.write(self.encode_string())
 
     def decode_string(self,input_string):
         # Extracting numbers from the input_string using string manipulation
@@ -290,7 +290,7 @@ class Serializer:
         return self.data
     
     def encode_string(self):
-        return  f"Wheels: [{self.data.wl},{self.data.wr},{self.data.wl_goal},{self.data.wr_goal}]"
+        return f"Wheels: [{self.data.wl_current},{self.data.wr_current},{self.data.wl_goal},{self.data.wr_goal}]".encode("utf-8")
 
 class SerialData:
     """
@@ -352,7 +352,7 @@ if __name__ == '__main__':
 
         temp_goal = rrt_plan[rrt_plan_index]
 
-        print(map.obstacle_dots)
+        # print(map.obstacle_dots)
 
         # Example motion using controller 
         tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
@@ -367,8 +367,8 @@ if __name__ == '__main__':
         if (cost < 1e-2):
             if (rrt_plan_index < len(rrt_plan) - 1):
                 rrt_plan_index += 1
-                print("New Goal: ")
-                print(rrt_plan[rrt_plan_index])
+                # print("New Goal: ")
+                # print(rrt_plan[rrt_plan_index])
 
         # Is car going to get stuck? Replan.
         if (v == 0 and w == 0):
@@ -380,7 +380,7 @@ if __name__ == '__main__':
             final_goal = np.array([goal_x, goal_y, goal_th])
             start = np.array([robot.x, robot.y, robot.th])
 
-            print("why are u runnin")
+            # print("why are u runnin")
             rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
             new_rrt_plan = rrtc.planning()
 

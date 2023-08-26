@@ -134,13 +134,13 @@ class Polygon:
             return True
 
         # Second check if point is in collision with edges
-        print(points)
+        # print(points)
         dist, _ = self.compute_distance_point_to_polygon(points[-1], False)
         if dist < min_dist:
-            print("Collision found!")
-            print(dist)
-            print(min_dist)
-            print("oof")
+            # print("Collision found!")
+            # print(dist)
+            # print(min_dist)
+            # print("oof")
             return True
 
         return False

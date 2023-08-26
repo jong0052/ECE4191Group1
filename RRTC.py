@@ -61,7 +61,7 @@ class RRTC:
         self.start_node_list = [self.start]
         self.end_node_list = [self.end]
 
-        print("Start planning: ")
+        # print("Start planning: ")
         while len(self.start_node_list) + len(self.end_node_list) <= self.max_nodes:
             
         #TODO: Complete the planning method ----------------------------------------------------------------
@@ -86,7 +86,7 @@ class RRTC:
                     # Note: It is important that you return path found as:
                     # return self.generate_final_course(len(self.start_node_list) - 1, len(self.end_node_list) - 1)
                 if can_connect:
-                    print("Path found!")
+                    # print("Path found!")
                     return self.generate_final_course(len(self.start_node_list) - 1, nearest_node_index)
                 
             # 4. Sample and add a node in the end tree
@@ -108,7 +108,7 @@ class RRTC:
                     # Note: It is important that you return path found as:
                     # return self.generate_final_course(len(self.start_node_list) - 1, len(self.end_node_list) - 1)
                 if can_connect:
-                    print("Path found!")
+                    # print("Path found!")
                     # I am using nearest_node_index because that would be the path we are connecting.
                     return self.generate_final_course(nearest_node_index, len(self.end_node_list) - 1)
 
