@@ -10,10 +10,12 @@ import math
 import serial
 import time
 
+serial.Serial
+
 class DiffDriveRobot:
 
     def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
-
+        
         # States
         self.x = x  # x-position
         self.y = y  # y-position
@@ -58,7 +60,7 @@ class DiffDriveRobot:
     # Kinematic motion model
     def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
 
-        if (simulation):
+        if (simulation): 
             self.wl = self.motor_simulator(self.wl, duty_cycle_l)
             self.wr = self.motor_simulator(self.wr, duty_cycle_r)
         else:
@@ -188,7 +190,7 @@ class Map:
     # Simulation
     def check_ultrasonic(self, robot_x, robot_y, robot_th):
 
-        if simulation:
+        if True: # if simulation
             # Draw a line from robot to check true_obstacles
             curr_x = robot_x
             curr_y = robot_y
@@ -281,7 +283,7 @@ class Serializer:
         try:
             start_idx = input_string.index("[") + 1
             end_idx = input_string.index("]")
-            wl_current, wr_current, wl_goal, wr_goal = map(int, input_string[start_idx:end_idx].split(','))
+            wl_current, wr_current, wl_goal, wr_goal = [float(num) for num in input_string[start_idx:end_idx].split(',')]
         except ValueError:
             raise ValueError("Invalid input format")
 
@@ -361,7 +363,12 @@ if __name__ == '__main__':
         duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
         
         # Simulate robot motion - send duty cycle command to controller
-        x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r,wl_goal,wr_goal)
+        if (not simulation):
+            wl = serializer.data.wl_current / 60 * 2*math.pi
+            wr = serializer.data.wr_current / 60 * 2 * math.pi
+            x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
+        else:
+            x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)    
         
         # Have we reached temp_goal?
         if (cost < 1e-2):
@@ -401,6 +408,7 @@ if __name__ == '__main__':
             wr_goal_rpm = wr_goal * 60 / (2 * math.pi)
             serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
             serializer.write()
+            serializer.read()
 
         if plotting:
             # Plot robot data

@@ -45,6 +45,30 @@ class PID_control{
   }
 };
 
+// Ignore this Yide, I promise it is for the good of society
+void parseStringToFloats(String input, float &wl_current, float &wr_current, float &wl_goal, float &wr_goal) {
+  int index = input.indexOf("[") + 1; // Find the starting index of the values
+  int endIndex = input.indexOf("]"); // Find the ending index of the values
+
+  String valuesStr = input.substring(index, endIndex); // Extract the values between '[' and ']'
+  valuesStr.replace(" ", ""); // Remove any spaces
+  
+  int commaIndex = valuesStr.indexOf(","); // Find the index of the first comma
+
+  wl_current = valuesStr.substring(0, commaIndex).toFloat(); // Convert the substring to a float and assign to variable
+  valuesStr = valuesStr.substring(commaIndex + 1); // Remove the parsed value and comma
+  
+  commaIndex = valuesStr.indexOf(",");
+  wr_current = valuesStr.substring(0, commaIndex).toFloat();
+  valuesStr = valuesStr.substring(commaIndex + 1);
+  
+  commaIndex = valuesStr.indexOf(",");
+  wl_goal = valuesStr.substring(0, commaIndex).toFloat();
+  valuesStr = valuesStr.substring(commaIndex + 1);
+  
+  wr_goal = valuesStr.toFloat(); // The remaining value is the last one
+}
+
 ////////////////////////////////////
 // Define the Global Variables//////
 ////////////////////////////////////
@@ -83,6 +107,12 @@ volatile int increment[] = {0,0};
 //Define PID_control class objects
 PID_control pid[NUM_MOTORS];
 
+// Serial Data
+float wl_current = 0;
+float wr_current = 0;
+float wl_goal = 0;
+float wr_goal = 0;
+
 ////////////////////////////////////
 // Define the Set up LOOP///////////
 ////////////////////////////////////
@@ -111,12 +141,35 @@ void loop() {
   //////////////////////////////////////////////////////
   //*************While Uninterrupted******************//
   //////////////////////////////////////////////////////
+  
+
+  // Read Serial Data!
+  if (Serial.available() > 0) {
+    String data = Serial.readStringUntil('\n');
+
+    if (data.startsWith("Wheels")){
+      parseStringToFloats(data, wl_current, wr_current, wl_goal, wr_goal);
+      wr_current = v2[0]
+      wl_current = v2[1]
+      
+      Serial.print("Wheels: [");
+      Serial.print(wl_current);
+      Serial.print(", ");
+      Serial.print(wr_current);
+      Serial.print(", ");
+      Serial.print(wl_goal);
+      Serial.print(", ");
+      Serial.print(wr_goal);
+      Serial.println("]");
+    }
+  }
+
   //----------------- 1. Define the target velocity-----------------------
   float vt[2]; 
   // 0: target velocity of the right motor (assume ball bearing at the front).
   // 1: target velocity of the left motor (assume ball bearing at the front). 
-  vt[0] = 100;
-  vt[1] = -100;//-10*sin(prevT/1e6);
+  vt[0] = wr_goal;
+  vt[1] = -wl_goal;//-10*sin(prevT/1e6);
   
   //------------------ 2. Initialise position and make sure position updates----------------------
   int pos[] = {0, 0};// The current position of the motor recorded by encoder.
