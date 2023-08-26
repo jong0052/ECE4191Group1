@@ -149,8 +149,8 @@ void loop() {
 
     if (data.startsWith("Wheels")){
       parseStringToFloats(data, wl_current, wr_current, wl_goal, wr_goal);
-      wr_current = v2[0]
-      wl_current = v2[1]
+      wl_current = -v2[1];
+      wr_current = v2[0];
       
       Serial.print("Wheels: [");
       Serial.print(wl_current);
@@ -168,8 +168,8 @@ void loop() {
   float vt[2]; 
   // 0: target velocity of the right motor (assume ball bearing at the front).
   // 1: target velocity of the left motor (assume ball bearing at the front). 
-  vt[0] = wr_goal;
-  vt[1] = -wl_goal;//-10*sin(prevT/1e6);
+  vt[0] = wr_goal; // Right WHEELS?
+  vt[1] = wl_goal;//-10*sin(prevT/1e6); Left WHEELS????
   
   //------------------ 2. Initialise position and make sure position updates----------------------
   int pos[] = {0, 0};// The current position of the motor recorded by encoder.
@@ -225,12 +225,14 @@ void loop() {
     setMotor(dir, pwr, pwm[k], in[k]);
   }
 
+   /*
   Serial.print(vt[0]);
   Serial.print(" ");
   Serial.print(v1Filt[0]);
   Serial.print(" ");
   Serial.print(increment[0]);
   Serial.println();
+  */
   delay(1); // Ensure consistent sampling frequency
 }
 

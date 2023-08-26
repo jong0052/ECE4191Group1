@@ -10,8 +10,6 @@ import math
 import serial
 import time
 
-serial.Serial
-
 class DiffDriveRobot:
 
     def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
@@ -53,7 +51,7 @@ class DiffDriveRobot:
 
         v = (wl * self.r + wr * self.r) / 2.0
 
-        w = (wl * self.r - wr * self.r) / self.l
+        w = (wr * self.r - wl * self.r) / self.l
 
         return v, w
 
@@ -66,6 +64,7 @@ class DiffDriveRobot:
         else:
             self.wl = wl
             self.wr = wr
+            print(f"Current Wheel: {self.wl}, {self.wr}")
 
         v, w = self.base_velocity(self.wl, self.wr)
 
@@ -97,8 +96,8 @@ class RobotController:
         
     def drive(self,v_desired,w_desired,wl,wr):
         
-        wl_goal = (v_desired + self.l*w_desired/2)/self.r
-        wr_goal = (v_desired - self.l*w_desired/2)/self.r
+        wl_goal = (v_desired - self.l*w_desired/2)/self.r
+        wr_goal = (v_desired + self.l*w_desired/2)/self.r
         
         duty_cycle_l,self.e_sum_l = self.p_control(wl_goal,wl,self.e_sum_l)
         duty_cycle_r,self.e_sum_r = self.p_control(wr_goal,wr,self.e_sum_r)
@@ -267,9 +266,8 @@ class Serializer:
 
     def read(self):
         line = self.ser.readline().decode('utf-8').rstrip()
+        print(line)
         serial_data = self.decode_string(line)
-
-        return serial_data
     
     def write(self):
         self.ser.write(self.encode_string())
@@ -278,7 +276,7 @@ class Serializer:
         # Extracting numbers from the input_string using string manipulation
         # Line Format: "Wheels: [wl, wr]"
         if not input_string.startswith("Wheels"):
-            raise ValueError("Input string must start with 'Wheels'")
+            return
     
         try:
             start_idx = input_string.index("[") + 1
@@ -289,7 +287,7 @@ class Serializer:
 
         # Creating a SerialData object with the extracted numbers
         self.data.update(wl_current=wl_current, wr_current=wr_current, wl_goal=wl_goal, wr_goal=wr_goal)
-        return self.data
+        
     
     def encode_string(self):
         return f"Wheels: [{self.data.wl_current},{self.data.wr_current},{self.data.wl_goal},{self.data.wr_goal}]".encode("utf-8")
@@ -342,8 +340,8 @@ if __name__ == '__main__':
 
     fail_combo = 0
 
-    plotting = True
-    simulation = True
+    plotting = False
+    simulation = False
     
     if (not simulation):
         serializer = Serializer()
@@ -406,7 +404,7 @@ if __name__ == '__main__':
             # serializer.read()
             wl_goal_rpm = wl_goal * 60 / (2 * math.pi)
             wr_goal_rpm = wr_goal * 60 / (2 * math.pi)
-            serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
+            serializer.data.update(wl_goal=50, wr_goal=0)
             serializer.write()
             serializer.read()
 
