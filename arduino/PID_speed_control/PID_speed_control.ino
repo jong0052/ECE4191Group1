@@ -149,18 +149,6 @@ void loop() {
 
     if (data.startsWith("Wheels")){
       parseStringToFloats(data, wl_current, wr_current, wl_goal, wr_goal);
-      wl_current = -v2[1];
-      wr_current = v2[0];
-      
-      Serial.print("Wheels: [");
-      Serial.print(wl_current);
-      Serial.print(", ");
-      Serial.print(wr_current);
-      Serial.print(", ");
-      Serial.print(wl_goal);
-      Serial.print(", ");
-      Serial.print(wr_goal);
-      Serial.println("]");
     }
   }
 
@@ -233,6 +221,20 @@ void loop() {
   Serial.print(increment[0]);
   Serial.println();
   */
+
+    wl_current = -v1Filt[1];
+    wr_current = v1Filt[0];
+    
+    Serial.print("Wheels: [");
+    Serial.print(wl_current);
+    Serial.print(", ");
+    Serial.print(wr_current);
+    Serial.print(", ");
+    Serial.print(wl_goal);
+    Serial.print(", ");
+    Serial.print(wr_goal);
+    Serial.println("]");
+  
   delay(1); // Ensure consistent sampling frequency
 }
 
