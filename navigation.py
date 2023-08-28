@@ -265,7 +265,7 @@ class Serializer:
         self.data = SerialData()
 
     def read(self):
-        line = self.ser.readline().decode('utf-8').rstrip()
+        line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
         print(line)
         serial_data = self.decode_string(line)
     
@@ -340,8 +340,8 @@ if __name__ == '__main__':
 
     fail_combo = 0
 
-    plotting = True
-    simulation = True
+    plotting = False
+    simulation = False
     
     if (not simulation):
         serializer = Serializer()

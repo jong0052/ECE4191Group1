@@ -128,7 +128,7 @@ void setup() {
     pinMode(pwm[k], OUTPUT);
     pinMode(in[k], OUTPUT);
 
-    pid[k].setParams(3, 0, 1, 255);
+    pid[k].setParams(30, 0, 1, 255);
   }
   
   // Trigger an interrupt when encoder A rises
@@ -149,6 +149,19 @@ void loop() {
 
     if (data.startsWith("Wheels")){
       parseStringToFloats(data, wl_current, wr_current, wl_goal, wr_goal);
+      
+      wl_current = v1Filt[1];
+      wr_current = v1Filt[0];
+      
+      Serial.print("Wheels: [");
+      Serial.print(wl_current);
+      Serial.print(", ");
+      Serial.print(wr_current);
+      Serial.print(", ");
+      Serial.print(wl_goal);
+      Serial.print(", ");
+      Serial.print(wr_goal);
+      Serial.println("]");
     }
   }
 
@@ -221,19 +234,6 @@ void loop() {
   Serial.print(increment[0]);
   Serial.println();
   */
-
-    wl_current = -v1Filt[1];
-    wr_current = v1Filt[0];
-    
-    Serial.print("Wheels: [");
-    Serial.print(wl_current);
-    Serial.print(", ");
-    Serial.print(wr_current);
-    Serial.print(", ");
-    Serial.print(wl_goal);
-    Serial.print(", ");
-    Serial.print(wr_goal);
-    Serial.println("]");
   
   delay(1); // Ensure consistent sampling frequency
 }
@@ -270,10 +270,10 @@ void readEncoder2(){
   int b2 = digitalRead(encb[1]);
   increment[1] = 0;
   if(b2>0){
-    increment[1] = 1;
+    increment[1] = -1;
   }
   else {
-    increment[1] = -1;
+    increment[1] = 1;
   }
   pos_i[1] = pos_i[1] + increment[1];
   long currT2 = micros(); // Micros returns the number of microseconds since the board has begin running the program
