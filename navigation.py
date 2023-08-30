@@ -411,14 +411,14 @@ class GoalSetter():
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.0,y=-0.0,th=0)
-    controller = RobotController(Kp=10.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
-    map = Map(1.5, 1.5, obstacles)
+    map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
 
     goal_setter.add_new_goal(0.3, 0.2, math.pi)
-    goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
+    # goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
 
     while goal_setter.increment_goal():
 
@@ -602,8 +602,8 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
         
         # print("loop 3")
 
-obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
-# obstacles = []
+# obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
+obstacles = []
 
 plotting = True
 simulation = True
