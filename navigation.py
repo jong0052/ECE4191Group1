@@ -12,7 +12,7 @@ import time
 
 class DiffDriveRobot:
 
-    def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
+    def __init__(self, inertia=5, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0,last=[]):
         
         # States
         self.x = x  # x-position
@@ -26,7 +26,8 @@ class DiffDriveRobot:
         # Constants
         self.I = inertia
         self.d = drag
-        self.dt = dt
+        #self.dt=dt
+        self.last = [0]
 
         self.r = wheel_radius
         self.l = wheel_sep
@@ -34,15 +35,15 @@ class DiffDriveRobot:
     # Should be replaced by motor encoder measurement which measures how fast wheel is turning
     # Here, we simulate the real system and measurement
     def motor_simulator(self, w, duty_cycle):
-
+        dt = time.time() - self.last[-1]
         torque = self.I * duty_cycle
 
         if (w > 0):
-            w = min(w + self.dt * (torque - self.d * w), 3)
+            w = min(w + dt * (torque - self.d * w), 3)
         elif (w < 0):
-            w = max(w + self.dt * (torque - self.d * w), -3)
+            w = max(w + dt * (torque - self.d * w), -3)
         else:
-            w = w + self.dt * (torque)
+            w = w + dt * (torque)
 
         return w
 
@@ -57,6 +58,9 @@ class DiffDriveRobot:
 
     # Kinematic motion model
     def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
+        print(self.last)
+        dt = time.time() - self.last[-1]
+
 
         if (simulation): 
             self.wl = self.motor_simulator(self.wl, duty_cycle_l)
@@ -68,9 +72,14 @@ class DiffDriveRobot:
 
         v, w = self.base_velocity(self.wl, self.wr)
 
-        self.x = self.x + self.dt * v * np.cos(self.th)
-        self.y = self.y + self.dt * v * np.sin(self.th)
-        self.th = self.th + w * self.dt
+        self.x = self.x + dt * v * np.cos(self.th)
+        self.y = self.y + dt * v * np.sin(self.th)
+        self.th = self.th + w * dt
+
+        self.last.append(time.time())
+        print(self.last)
+        print(dt)
+        self.last.pop(0)
 
         return self.x, self.y, self.th
 
@@ -168,6 +177,8 @@ class TentaclePlanner:
         return self.tentacles[best_idx], best_costs
 
 # This is NEW! (We coded this)
+
+
 class Map:
     def __init__(self, width = 2, height = 2, true_obstacles = []):
         # Constants
@@ -314,7 +325,7 @@ class SerialData:
 if __name__ == '__main__':
     obstacles = [Rectangle((-0.4,0),0.9,0.1)]
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0,last=0)
     controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.5, 1.5, obstacles)
@@ -340,8 +351,8 @@ if __name__ == '__main__':
 
     fail_combo = 0
 
-    plotting = False
-    simulation = False
+    plotting = True
+    simulation = True
     
     if (not simulation):
         serializer = Serializer()
