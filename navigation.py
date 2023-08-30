@@ -352,7 +352,7 @@ class SerialData:
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0,last=0)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
     controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.5, 1.5, obstacles)
