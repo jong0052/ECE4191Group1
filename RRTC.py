@@ -33,7 +33,8 @@ class RRTC:
                  height = 100,
                  expand_dis = 3.0, 
                  path_resolution = 0.5, 
-                 max_points = 200):
+                 max_points = 200,
+                 max_attempts = 500):
         """
         Setting Parameter
         start:Start Position [x,y]
@@ -53,6 +54,7 @@ class RRTC:
         self.obstacle_list = obstacle_list
         self.start_node_list = [] # Tree from start
         self.end_node_list = [] # Tree from end
+        self.max_attempts = max_attempts
         
     def planning(self):
         """
@@ -60,9 +62,12 @@ class RRTC:
         """
         self.start_node_list = [self.start]
         self.end_node_list = [self.end]
+        attempts = 0
 
         # print("Start planning: ")
-        while len(self.start_node_list) + len(self.end_node_list) <= self.max_nodes:
+        while len(self.start_node_list) + len(self.end_node_list) <= self.max_nodes and attempts < self.max_attempts:
+
+            attempts += 1
             
         #TODO: Complete the planning method ----------------------------------------------------------------
             # 1. Sample and add a node in the start tree
