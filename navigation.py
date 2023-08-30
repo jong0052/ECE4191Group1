@@ -10,6 +10,9 @@ import math
 import serial
 import time
 
+import multiprocessing
+from multiprocessing import Process, Value, Manager
+
 class DiffDriveRobot:
 
     def __init__(self, inertia=5, dt=0.1, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
@@ -175,8 +178,9 @@ class Map:
         self.height = height
         self.obstacle_dots = None
         self.true_obstacles = true_obstacles
-        self.obstacle_size = 0.05
-        
+        self.obstacle_size = 0.15
+        self.obstacle_closest_threshold = 0.1
+
         self.initialize = True
 
     def update(self, robot_x, robot_y, robot_th):
@@ -244,6 +248,17 @@ class Map:
         else:
             # print(self.obstacle_dots)
             # print(point)
+            # If obstacle is within 0.01 of another point, don't add it to avoid clutter.
+            for dot in self.obstacle_dots:
+                # print(dot)
+                # print(point)
+                dx = dot[0] - point[0][0]
+                dy = dot[1] - point[0][1]
+                h = math.sqrt(dx ** 2 + dy ** 2)
+
+                if h < self.obstacle_closest_threshold:
+                    return
+
             self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
 
         # Get rid of any obstacles in line of sight 
@@ -257,6 +272,15 @@ class Map:
                 obstacle_list.append(Circle(dot[0], dot[1], self.obstacle_size))
 
         return obstacle_list
+    
+    def get_obstacle_log(self):
+        obstacle_list = []
+
+        if (not self.initialize):
+            for dot in self.obstacle_dots:
+                obstacle_list.append([dot[0],dot[1]])
+
+        return obstacle_list
 
 class Serializer:
     def __init__(self):
@@ -267,7 +291,7 @@ class Serializer:
     def read(self):
         line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
         print(line)
-        serial_data = self.decode_string(line)
+        self.decode_string(line)
     
     def write(self):
         self.ser.write(self.encode_string())
@@ -311,24 +335,13 @@ class SerialData:
         if wr_goal is not None:
             self.wr_goal = wr_goal
 
-if __name__ == '__main__':
-    obstacles = [Rectangle((-0.4,0),0.9,0.1)]
+def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
     controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.5, 1.5, obstacles)
 
     plt.figure(figsize=(15,9))
-
-    poses = []
-    velocities = []
-    duty_cycle_commands = []
-    costs_vec = []
-
-    goal_x = 0.6
-    goal_y = 0.6
-    goal_th = 0
 
     final_goal = np.array([goal_x, goal_y, goal_th])
     start = np.array([robot.x, robot.y, robot.th])
@@ -338,15 +351,7 @@ if __name__ == '__main__':
     rrt_plan = rrtc.planning()
     rrt_plan_index = 0
 
-    fail_combo = 0
-
-    plotting = False
-    simulation = False
-    
-    if (not simulation):
-        serializer = Serializer()
-
-    while True:
+    while (True):
         # Map Generation for obstacles
         map.update(robot.x, robot.y, robot.th)
 
@@ -359,6 +364,8 @@ if __name__ == '__main__':
         v,w=tentacle
         
         duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
+        wl_goal_value.value = wl_goal
+        wr_goal_value.value = wr_goal
         
         # Simulate robot motion - send duty cycle command to controller
         if (not simulation):
@@ -376,8 +383,8 @@ if __name__ == '__main__':
                 # print(rrt_plan[rrt_plan_index])
 
         # Is car going to get stuck? Replan.
-        if (v == 0 and w == 0):
-            fail_combo += 1
+        # if (v == 0 and w == 0):
+        #     fail_combo += 1
 
         rrtc.obstacle_list = map.get_obstacle_list()
 
@@ -398,73 +405,151 @@ if __name__ == '__main__':
         duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
         velocities.append([robot.wl,robot.wr])
         costs_vec.append(cost)
+        obstacle_data[:] = []
+        obstacle_data.extend(map.get_obstacle_log())
+        rrt_plan_mp[:] = []
+        rrt_plan_mp.extend(rrt_plan)
+        robot_data[:] = []
+        robot_data.extend([robot.x, robot.y, robot.th])
+
+        print("loop 1")
+
+def serializer_loop(wl_goal_value, wr_goal_value):
+    while True:
+        # Read Data 
+        # serializer.read()
+        wl_goal_rpm = wl_goal_value.value * 60 / (2 * math.pi)
+        wr_goal_rpm = wr_goal_value.value * 60 / (2 * math.pi)
+        serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
+        serializer.write()
+        serializer.read()
         
+        print("loop 2")
+
+def plotting_loop(poses, obstacle_data, rrt_plan, robot_data):
+    poses_local = []
+    obstacle_data_local = []
+    robot_data_local = []
+    rrt_plan_local = []
+
+    while True:
+        time.sleep(1)
+
+        poses_local_unstable = poses[:]
+        robot_data_local_unstable = robot_data[:]
+        rrt_plan_local_unstable = rrt_plan[:]
+        obstacle_data_local_unstable = obstacle_data[:]
+
+        if (len(poses_local_unstable) > 0):
+            poses_local= poses_local_unstable
+        
+        if (len(robot_data_local_unstable) > 0):
+            robot_data_local = robot_data_local_unstable
+        
+        if (len(obstacle_data_local_unstable) > 0):
+            obstacle_data_local = obstacle_data_local_unstable
+        
+        if (len(rrt_plan_local_unstable) >0):
+            rrt_plan_local = rrt_plan_local_unstable
+
+        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(rrt_plan_local) > 0)):
+            print("Failed to plot, empty data...")
+            continue
+
+        # Plot robot data
+        plt.clf()
+        ax = plt.gca() 
+        for obstacle in obstacles:
+            if isinstance(obstacle,Circle):
+                patch = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
+            elif isinstance(obstacle,Rectangle):
+                patch = R((obstacle.origin[0],obstacle.origin[1]),obstacle.width,obstacle.height,fill=True,edgecolor='pink')
+            ax.add_patch(patch)
+
+        #plt.subplot(1,3,1)
+        plt.plot(np.array(poses_local)[:,0],np.array(poses_local)[:,1])
+        plt.plot(robot_data_local[0], robot_data_local[1],'k',marker='+')
+        plt.quiver(robot_data_local[0],robot_data_local[1],0.1*np.cos(robot_data_local[2]),0.1*np.sin(robot_data_local[2]))
+        plt.plot(goal_x,goal_y,'x',markersize=5)
+        plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
+
+        np_obstacle_data = np.array(obstacle_data_local)
+        plt.plot(np_obstacle_data[:,0],np_obstacle_data[:,1],'ko',markersize=5)
+        plt.xlim(-1,1)
+        plt.ylim(-1,1)
+        plt.xlabel('x-position (m)')
+        plt.ylabel('y-position (m)')
+        plt.grid()
+
+        plan_x_data = []
+        plan_y_data = []
+        plan_th_data = []
+
+        for i in range(len(rrt_plan_local)):
+            plan_x_data = np.append(plan_x_data, rrt_plan_local[i][0])
+            plan_y_data = np.append(plan_y_data, rrt_plan_local[i][1])
+            plan_th_data = np.append(plan_th_data, rrt_plan_local[i][2])
+
+        plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
+
+        #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
+        plt.xlim(-1,1)
+        plt.ylim(-1,1)
+        plt.xlabel('x-position (m)')
+        plt.ylabel('y-position (m)')
+        plt.grid()
+
+        plt.pause(0.05)
+        plt.show(block=False)
+        
+        display.clear_output(wait=True)
+        display.display(plt.gcf())
+        
+        print("loop 3")
+
+obstacles = [Rectangle((-0.4,0),0.9,0.1)]
+robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
+   
+goal_x = 0.6
+goal_y = 0.6
+goal_th = 0
+
+plotting = True
+simulation = True
+
+if __name__ == '__main__':
+    manager = Manager()
+    
+    poses = manager.list()
+    velocities = manager.list()
+    duty_cycle_commands = manager.list()
+    costs_vec = manager.list()
+    obstacle_data = manager.list()
+    rrt_plan = manager.list()
+    robot_data = manager.list()
+
+    if not simulation:
+        serializer = Serializer()
+
+    while True:
+        wl_goal_value = Value('f',0)
+        wr_goal_value = Value('f',0)
+        
+        proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data))
+
         if not simulation:
-            # Read Data 
-            # serializer.read()
-            wl_goal_rpm = wl_goal * 60 / (2 * math.pi)
-            wr_goal_rpm = wr_goal * 60 / (2 * math.pi)
-            serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
-            serializer.write()
-            serializer.read()
-
+            proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value))
         if plotting:
-            # Plot robot data
-            plt.clf()
-            ax = plt.gca()
-            for obstacle in obstacles:
-                if isinstance(obstacle,Circle):
-                    patch = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
-                elif isinstance(obstacle,Rectangle):
-                    patch = R((obstacle.origin[0],obstacle.origin[1]),obstacle.width,obstacle.height,fill=True,edgecolor='pink')
-                ax.add_patch(patch)
-
-            #plt.subplot(1,3,1)
-            plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
-            plt.plot(x,y,'k',marker='+')
-            plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
-            plt.plot(goal_x,goal_y,'x',markersize=5)
-            plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
-
-            plt.plot(map.obstacle_dots[:,0],map.obstacle_dots[:,1],'ko',markersize=5)
-            plt.xlim(-1,1)
-            plt.ylim(-1,1)
-            plt.xlabel('x-position (m)')
-            plt.ylabel('y-position (m)')
-            plt.grid()
-
-            #plt.subplot(1,3,2)
-            plt.plot(np.array(poses)[:,0],np.array(poses)[:,1])
-            plt.plot(x,y,'k',marker='+')
-            plt.quiver(x,y,0.1*np.cos(th),0.1*np.sin(th))
-            plt.plot(goal_x,goal_y,'x',markersize=5)
-            plt.quiver(goal_x,goal_y,0.01*np.cos(goal_th),0.01*np.sin(goal_th))
+            proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data))
         
-            plan_x_data = []
-            plan_y_data = []
-            plan_th_data = []
+        proc1.start()
+        if not simulation:
+            proc2.start()
+        if plotting:
+            proc3.start()
 
-            for i in range(len(rrt_plan)):
-                plan_x_data = np.append(plan_x_data, rrt_plan[i][0])
-                plan_y_data = np.append(plan_y_data, rrt_plan[i][1])
-                plan_th_data = np.append(plan_th_data, rrt_plan[i][2])
-
-            plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
-
-            #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
-            plt.xlim(-1,1)
-            plt.ylim(-1,1)
-            plt.xlabel('x-position (m)')
-            plt.ylabel('y-position (m)')
-            plt.grid()
-
-            plt.pause(0.05)
-            plt.show(block=False)
-            
-            display.clear_output(wait=True)
-            display.display(plt.gcf())
-        
-        # time.sleep(1)
-        
-        
-        
+        proc1.join()
+        if not simulation:
+            proc2.join()
+        if plotting:
+            proc3.join()
