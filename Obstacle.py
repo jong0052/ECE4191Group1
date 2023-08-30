@@ -78,6 +78,7 @@ class Polygon:
         return tangent_vector
 
     def compute_inner_vertices(self, offset):
+        print("Reee")
         num_points = self.vertices.shape[0]
         candidates = []
         tangent_lines = []

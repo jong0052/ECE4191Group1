@@ -350,85 +350,145 @@ class SerialData:
         if wr_goal is not None:
             self.wr_goal = wr_goal
 
-def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data):
+class GoalSetter():
+    def __init__(self):
+        self.goals = []
+        self.current_id = -1
+
+        # Thresholds for reaching goal
+        self.threshold = 1e-3
+        self.alpha = 1 # x y factor
+        self.beta = 0.1 # th factor
+
+        # Goal time
+        self.threshold_time = 5
+        self.last = time.time()
+        self.accumulative_time = 0
+
+    def get_current_goal(self):
+        if (self.current_id < len(self.goals)):
+            return self.goals[self.current_id]
+        else:
+            return []
+        
+    def add_emergency_goal(self, goal_x, goal_y, goal_th):
+        self.goals.insert(self.current_id, [goal_x, goal_y, goal_th])
+
+    def add_new_goal(self, goal_x, goal_y, goal_th):
+        self.goals.append([goal_x, goal_y, goal_th])
+
+    def check_reach_goal(self, robot_x, robot_y, robot_th):
+        goal_x, goal_y, goal_th = self.get_current_goal()
+
+        e_th = goal_th-robot_th
+        e_th = np.arctan2(np.sin(e_th),np.cos(e_th))
+        
+        cost = self.alpha*((goal_x-robot_x)**2 + (goal_y-robot_y)**2) + self.beta*(e_th**2)
+
+        if cost < self.threshold:
+            dt = time.time() - self.last
+            self.accumulative_time += dt
+            self.last = time.time()
+
+            if (self.accumulative_time > self.threshold_time):
+                self.accumulative_time = 0
+                return True
+            else:
+                return False
+        else:
+            self.accumulative_time = 0
+            self.last = time.time()
+            return False
+
+    # Increment Goal. If there's another goal, return True. If ran out of goals, return False.
+    def increment_goal(self):
+        self.current_id += 1
+
+        if (self.current_id < len(self.goals)):
+            return True
+        else:
+            return False
+
+def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.3,y=-0.4,th=0)
     controller = RobotController(Kp=1.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
-    map = Map(1.5, 1.5, obstacles)
+    map = Map(1.2, 1.2, obstacles)
+    goal_setter = GoalSetter()
 
-    plt.figure(figsize=(15,9))
+    goal_setter.add_new_goal(0.3, 0.2, math.pi)
+    goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
 
-    final_goal = np.array([goal_x, goal_y, goal_th])
-    start = np.array([robot.x, robot.y, robot.th])
-    expand_dis = 0.05
-    path_resolution = 0.01
-    rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
-    rrt_plan = rrtc.planning()
-    rrt_plan_index = 0
+    while (goal_setter.increment_goal()):
+        final_goal = np.array(goal_setter.get_current_goal())
+        start = np.array([robot.x, robot.y, robot.th])
+        expand_dis = 0.05
+        path_resolution = 0.01
+        rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
+        rrt_plan = rrtc.planning()
+        rrt_plan_index = 0
 
-    while (True):
-        # Map Generation for obstacles
-        map.update(robot.x, robot.y, robot.th)
+        while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
+            # Map Generation for obstacles
+            map.update(robot.x, robot.y, robot.th)
 
-        temp_goal = rrt_plan[rrt_plan_index]
+            temp_goal = rrt_plan[rrt_plan_index]
 
-        # print(map.obstacle_dots)
+            # print(map.obstacle_dots)
 
-        # Example motion using controller 
-        tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
-        v,w=tentacle
+            # Example motion using controller
+            tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
+            v,w=tentacle
+            
+            duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
+            wl_goal_value.value = wl_goal
+            wr_goal_value.value = wr_goal
+
+            # Simulate robot motion - send duty cycle command to controller
+            if (not simulation):
+                wl = serializer.data.wl_current / 60 * 2*math.pi
+                wr = serializer.data.wr_current / 60 * 2 * math.pi
+                x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
+            else:
+                x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)    
+            
+            # Have we reached temp_goal?
+            if (cost < 1e-2):
+                if (rrt_plan_index < len(rrt_plan) - 1):
+                    rrt_plan_index += 1
+
+            rrtc.obstacle_list = map.get_obstacle_list()
+
+            if (not rrtc.is_collision_free_path(rrt_plan)):
+                start = np.array([robot.x, robot.y, robot.th])
+
+                # print("why are u runnin")
+                rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
+                new_rrt_plan = rrtc.planning()
+
+                if (len(new_rrt_plan) > 0):
+                    rrt_plan = new_rrt_plan
+                    rrt_plan_index = 0
+
+            # Log data
+            poses.append([x,y,th])
+            duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
+            velocities.append([robot.wl,robot.wr])
+            costs_vec.append(cost)
+            obstacle_data[:] = []
+            obstacle_data.extend(map.get_obstacle_log())
+            rrt_plan_mp[:] = []
+            rrt_plan_mp.extend(rrt_plan)
+            robot_data[:] = []
+            robot_data.extend([robot.x, robot.y, robot.th])
+            goal_data[:] = []
+            goal_data.extend(goal_setter.get_current_goal())
+
+            print("loop 1")
         
-        duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
-        wl_goal_value.value = wl_goal
-        wr_goal_value.value = wr_goal
+        print(f"Reached Goal {goal_setter.current_id}, sleeping for 5 seconds.")
 
-        # Simulate robot motion - send duty cycle command to controller
-        if (not simulation):
-            wl = serializer.data.wl_current / 60 * 2*math.pi
-            wr = serializer.data.wr_current / 60 * 2 * math.pi
-            x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
-        else:
-            x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)    
-        
-        # Have we reached temp_goal?
-        if (cost < 1e-2):
-            if (rrt_plan_index < len(rrt_plan) - 1):
-                rrt_plan_index += 1
-                # print("New Goal: ")
-                # print(rrt_plan[rrt_plan_index])
-
-        # Is car going to get stuck? Replan.
-        # if (v == 0 and w == 0):
-        #     fail_combo += 1
-
-        rrtc.obstacle_list = map.get_obstacle_list()
-
-        if (not rrtc.is_collision_free_path(rrt_plan)):
-            final_goal = np.array([goal_x, goal_y, goal_th])
-            start = np.array([robot.x, robot.y, robot.th])
-
-            # print("why are u runnin")
-            rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
-            new_rrt_plan = rrtc.planning()
-
-            if (len(new_rrt_plan) > 0):
-                rrt_plan = new_rrt_plan
-                rrt_plan_index = 0
-
-        # Log data
-        poses.append([x,y,th])
-        duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
-        velocities.append([robot.wl,robot.wr])
-        costs_vec.append(cost)
-        obstacle_data[:] = []
-        obstacle_data.extend(map.get_obstacle_log())
-        rrt_plan_mp[:] = []
-        rrt_plan_mp.extend(rrt_plan)
-        robot_data[:] = []
-        robot_data.extend([robot.x, robot.y, robot.th])
-
-        print("loop 1")
 
 def serializer_loop(wl_goal_value, wr_goal_value):
     while True:
@@ -442,19 +502,21 @@ def serializer_loop(wl_goal_value, wr_goal_value):
 
         print("loop 2")
 
-def plotting_loop(poses, obstacle_data, rrt_plan, robot_data):
+def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     poses_local = []
     obstacle_data_local = []
     robot_data_local = []
     rrt_plan_local = []
+    goal_data_local = []
 
     while True:
-        time.sleep(1)
+        time.sleep(0.1)
 
         poses_local_unstable = poses[:]
         robot_data_local_unstable = robot_data[:]
         rrt_plan_local_unstable = rrt_plan[:]
         obstacle_data_local_unstable = obstacle_data[:]
+        goal_data_local_unstable = goal_data[:]
 
         if (len(poses_local_unstable) > 0):
             poses_local= poses_local_unstable
@@ -467,8 +529,11 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data):
 
         if (len(rrt_plan_local_unstable) >0):
             rrt_plan_local = rrt_plan_local_unstable
+            
+        if (len(goal_data_local_unstable) >0):
+            goal_data_local = goal_data_local_unstable
 
-        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(rrt_plan_local) > 0)):
+        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(rrt_plan_local) > 0) and len(goal_data_local) > 0):
             print("Failed to plot, empty data...")
             continue
 
@@ -486,8 +551,8 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data):
         plt.plot(np.array(poses_local)[:,0],np.array(poses_local)[:,1])
         plt.plot(robot_data_local[0], robot_data_local[1],'k',marker='+')
         plt.quiver(robot_data_local[0],robot_data_local[1],0.1*np.cos(robot_data_local[2]),0.1*np.sin(robot_data_local[2]))
-        plt.plot(goal_x,goal_y,'x',markersize=5)
-        plt.quiver(goal_x,goal_y,0.1*np.cos(goal_th),0.1*np.sin(goal_th))
+        plt.plot(goal_data_local[0],goal_data_local[1],'x',markersize=5)
+        plt.quiver(goal_data_local[0],goal_data_local[1],0.1*np.cos(goal_data_local[2]),0.1*np.sin(goal_data_local[2]))
 
         np_obstacle_data = np.array(obstacle_data_local)
         plt.plot(np_obstacle_data[:,0],np_obstacle_data[:,1],'ko',markersize=5)
@@ -523,11 +588,8 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data):
         
         print("loop 3")
 
-obstacles = [Rectangle((-0.4,0),0.9,0.1)]
-
-goal_x = 0.6
-goal_y = 0.6
-goal_th = 0
+obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
+# obstacles = []
 
 plotting = True
 simulation = True
@@ -542,29 +604,30 @@ if __name__ == '__main__':
     obstacle_data = manager.list()
     rrt_plan = manager.list()
     robot_data = manager.list()
+    goal_data = manager.list()
 
     if not simulation:
         serializer = Serializer()
 
-    while True:
-        wl_goal_value = Value('f',0)
-        wr_goal_value = Value('f',0)
-        
-        proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data))
+    # Multiprocessing
+    wl_goal_value = Value('f',0)
+    wr_goal_value = Value('f',0)
+    
+    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data))
 
-        if not simulation:
-            proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value))
-        if plotting:
-            proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data))
+    if not simulation:
+        proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value))
+    if plotting:
+        proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
 
-        proc1.start()
-        if not simulation:
-            proc2.start()
-        if plotting:
-            proc3.start()
+    proc1.start()
+    if not simulation:
+        proc2.start()
+    if plotting:
+        proc3.start()
 
-        proc1.join()
-        if not simulation:
-            proc2.join()
-        if plotting:
-            proc3.join()
+    proc1.join()
+    if not simulation:
+        proc2.join()
+    if plotting:
+        proc3.join()
