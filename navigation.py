@@ -15,7 +15,7 @@ from multiprocessing import Process, Value, Manager
 
 class DiffDriveRobot:
 
-    def __init__(self, inertia=5, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0,last=[]):
+    def __init__(self, inertia=5, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
         
         # States
         self.x = x  # x-position
@@ -30,16 +30,16 @@ class DiffDriveRobot:
         self.I = inertia
         self.d = drag
         #self.dt=dt
-        self.last = [0]
+        self.last = [time.time()]
 
         self.r = wheel_radius
         self.l = wheel_sep
 
     # Should be replaced by motor encoder measurement which measures how fast wheel is turning
     # Here, we simulate the real system and measurement
-    def motor_simulator(self, w, duty_cycle):
-        dt = time.time() - self.last[-1]
+    def motor_simulator(self, w, duty_cycle, dt):
         torque = self.I * duty_cycle
+        print(torque)
 
         if (w > 0):
             w = min(w + dt * (torque - self.d * w), 3)
@@ -47,7 +47,7 @@ class DiffDriveRobot:
             w = max(w + dt * (torque - self.d * w), -3)
         else:
             w = w + dt * (torque)
-
+        print(f"dt: {dt} w: {w}")
         return w
 
     # Veclocity motion model
@@ -61,13 +61,15 @@ class DiffDriveRobot:
 
     # Kinematic motion model
     def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
-        print(self.last)
+        # print(self.last)
         dt = time.time() - self.last[-1]
 
+        # print(duty_cycle_l)
+        # print(duty_cycle_r)
 
         if (simulation): 
-            self.wl = self.motor_simulator(self.wl, duty_cycle_l)
-            self.wr = self.motor_simulator(self.wr, duty_cycle_r)
+            self.wl = self.motor_simulator(self.wl, duty_cycle_l, dt)
+            self.wr = self.motor_simulator(self.wr, duty_cycle_r, dt)
         else:
             self.wl = wl
             self.wr = wr
@@ -80,9 +82,11 @@ class DiffDriveRobot:
         self.th = self.th + w * dt
 
         self.last.append(time.time())
-        print(self.last)
-        print(dt)
         self.last.pop(0)
+        # print(self.last)
+        # print(dt)
+        # print(self.wl)
+        # print(self.wr)
 
         return self.x, self.y, self.th
 
@@ -520,7 +524,6 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data):
         print("loop 3")
 
 obstacles = [Rectangle((-0.4,0),0.9,0.1)]
-robot = DiffDriveRobot(inertia=10, dt=0.1, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.4,y=-0.4,th=0)
 
 goal_x = 0.6
 goal_y = 0.6
