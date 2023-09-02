@@ -17,11 +17,11 @@ from multiprocessing import Process, Value, Manager
 obstacles = []
 
 plotting = True
-simulation = True
+simulation = False
 
 class DiffDriveRobot:
 
-    def __init__(self, inertia=5, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
+    def __init__(self, inertia=5, drag=0.2, wheel_radius=0.055, wheel_sep=0.15,x=0,y=0,th=0):
         
         # States
         self.x = x  # x-position
@@ -419,14 +419,14 @@ class GoalSetter():
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.3,y=-0.4,th=0)
-    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0545, wheel_sep=0.213,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0545,wheel_sep=0.213)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
 
-    goal_setter.add_new_goal(0.3, 0.2, math.pi)
-    goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
+    goal_setter.add_new_goal(0.3, -0.4, 0)
+    # goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
 
     while goal_setter.increment_goal():
 
@@ -450,7 +450,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                     tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
                     v,w=tentacle
                 else:
-                    v, w = -1, 0
+                    v, w = -0.1, 0
                     cost = np.inf
                     # if math.pi / 4 < robot.th < 3 * math.pi / 4:
                     #     GoalSetter.add_emergency_goal(goal_setter, robot.x, robot.y - 0.3)
@@ -506,6 +506,8 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 robot_data.extend([robot.x, robot.y, robot.th])
                 goal_data[:] = []
                 goal_data.extend(goal_setter.get_current_goal())
+                
+                print("loop 1")
 
                 
 
@@ -554,6 +556,8 @@ def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
         # print("loop 2")
         current_wl.value = serializer.data.wl_current
         current_wr.value = serializer.data.wr_current
+        
+        print("loop 2")
 
 def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     poses_local = []
@@ -640,6 +644,7 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
         display.clear_output(wait=True)
         display.display(plt.gcf())
         
+        print("loop 3")
         
 
 if __name__ == '__main__':
