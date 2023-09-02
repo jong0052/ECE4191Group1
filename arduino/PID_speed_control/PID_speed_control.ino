@@ -128,7 +128,7 @@ void setup() {
     pinMode(pwm[k], OUTPUT);
     pinMode(in[k], OUTPUT);
 
-    pid[k].setParams(30, 0, 1, 255);
+    pid[k].setParams(10, 0, 10, 255);
   }
   
   // Trigger an interrupt when encoder A rises
@@ -142,28 +142,27 @@ void loop() {
   //*************While Uninterrupted******************//
   //////////////////////////////////////////////////////
   
-
   // Read Serial Data!
   if (Serial.available() > 0) {
     String data = Serial.readStringUntil('\n');
-
-    if (data.startsWith("Wheels")){
-      parseStringToFloats(data, wl_current, wr_current, wl_goal, wr_goal);
-      
-      wl_current = v1Filt[1];
-      wr_current = v1Filt[0];
-      
-      Serial.print("Wheels: [");
-      Serial.print(wl_current);
-      Serial.print(", ");
-      Serial.print(wr_current);
-      Serial.print(", ");
-      Serial.print(wl_goal);
-      Serial.print(", ");
-      Serial.print(wr_goal);
-      Serial.println("]");
+    parseStringToFloats(data, wl_current, wr_current, wl_goal, wr_goal);
+    wl_current = v1Filt[1];
+    wr_current = v1Filt[0];
+    if (data.startsWith("Pi")){
+      // Check for the serial ready to read 
+      if(Serial.availableForWrite()>0){
+        Serial.print("Nano: [");
+        Serial.print(wl_current);
+        Serial.print(", ");
+        Serial.print(wr_current);
+        Serial.print(", ");
+        Serial.print(wl_goal);
+        Serial.print(", ");
+        Serial.print(wr_goal);
+        Serial.println("]");
+        }
+   }
     }
-  }
 
   //----------------- 1. Define the target velocity-----------------------
   float vt[2]; 
@@ -226,6 +225,7 @@ void loop() {
     setMotor(dir, pwr, pwm[k], in[k]);
   }
 
+  
    /*
   Serial.print(vt[0]);
   Serial.print(" ");
@@ -236,6 +236,8 @@ void loop() {
   */
   
   delay(1); // Ensure consistent sampling frequency
+  
+  
 }
 
 // Set the power and direction of the Motor

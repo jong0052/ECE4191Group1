@@ -13,6 +13,12 @@ import time
 import multiprocessing
 from multiprocessing import Process, Value, Manager
 
+# obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
+obstacles = []
+
+plotting = True
+simulation = False
+
 class DiffDriveRobot:
 
     def __init__(self, inertia=5, drag=0.2, wheel_radius=0.05, wheel_sep=0.15,x=0,y=0,th=0):
@@ -73,7 +79,7 @@ class DiffDriveRobot:
         else:
             self.wl = wl
             self.wr = wr
-            print(f"Current Wheel: {self.wl}, {self.wr}")
+            # print(f"Current Wheel: {self.wl}, {self.wr}")
 
         v, w = self.base_velocity(self.wl, self.wr)
 
@@ -132,9 +138,9 @@ class TentaclePlanner:
         else:
             #self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
             self.tentacles = []
-            for v in range(0,11, 1):
-                for w in range(-10,11, 1):
-                    self.tentacles.append((v/100, w/10))
+            for v in range(0,10, 1):
+                for w in range(-3,3, 1):
+                    self.tentacles.append((v/300, w/10))
 
             # print(self.tentacles)
   
@@ -305,16 +311,17 @@ class Serializer:
 
     def read(self):
         line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-        print(line)
+        print("serial read: " + str(line))
         self.decode_string(line)
     
     def write(self):
         self.ser.write(self.encode_string())
+        print("serial write: " + str(self.encode_string()))
 
     def decode_string(self,input_string):
         # Extracting numbers from the input_string using string manipulation
         # Line Format: "Wheels: [wl, wr]"
-        if not input_string.startswith("Wheels"):
+        if not input_string.startswith("Nano"):
             return
     
         try:
@@ -329,7 +336,7 @@ class Serializer:
         
     
     def encode_string(self):
-        return f"Wheels: [{self.data.wl_current},{self.data.wr_current},{self.data.wl_goal},{self.data.wr_goal}]".encode("utf-8")
+        return f"Pi: [{self.data.wl_current},{self.data.wr_current},{self.data.wl_goal},{self.data.wr_goal}]".encode("utf-8")
 
 class SerialData:
     """
@@ -356,7 +363,7 @@ class GoalSetter():
         self.current_id = -1
 
         # Thresholds for reaching goal
-        self.threshold = 1e-3
+        self.threshold = 1e-1
         self.alpha = 1 # x y factor
         self.beta = 0.1 # th factor
 
@@ -409,7 +416,7 @@ class GoalSetter():
         else:
             return False
 
-def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data):
+def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
     robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.05, wheel_sep=0.15,x=-0.3,y=-0.4,th=0)
     controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.05,wheel_sep=0.15)
@@ -453,7 +460,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                     # else:
                     #     GoalSetter.add_emergency_goal(goal_setter, robot.x - 0.3, robot.y)
 
-                print(f"v: {v} w: {w}")
+                # print(f"v: {v} w: {w}")
 
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
                 wl_goal_value.value = wl_goal
@@ -461,8 +468,8 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = serializer.data.wl_current / 60 * 2*math.pi
-                    wr = serializer.data.wr_current / 60 * 2 * math.pi
+                    wl = current_wl.value / 60 * 2*math.pi
+                    wr = current_wr.value / 60 * 2 * math.pi
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
@@ -499,21 +506,34 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 goal_data[:] = []
                 goal_data.extend(goal_setter.get_current_goal())
 
-                # print("loop 1")
+                
 
             print(f"Reached Goal {goal_setter.current_id}, sleeping for 5 seconds.")
 
-def serializer_loop(wl_goal_value, wr_goal_value):
+def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
+    serializer = Serializer()
     while True:
+        
         # Read Data
         # serializer.read()
         wl_goal_rpm = wl_goal_value.value * 60 / (2 * math.pi)
         wr_goal_rpm = wr_goal_value.value * 60 / (2 * math.pi)
+        # print(wl_goal_rpm)
+        # print(wr_goal_rpm)
         serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
         serializer.write()
+        time.sleep(0.1)
         serializer.read()
+    
+        #if(serializer.ser.in_waiting>0):
+            #serializer.read()
+        #else:
+            
+        
+        current_wl.value = serializer.data.wl_current
+        current_wr.value = serializer.data.wr_current
 
-        # print("loop 2")
+        
 
 def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     poses_local = []
@@ -523,7 +543,7 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     goal_data_local = []
 
     while True:
-        time.sleep(0.1)
+        time.sleep(0.5)
 
         poses_local_unstable = poses[:]
         robot_data_local_unstable = robot_data[:]
@@ -600,13 +620,7 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
         display.clear_output(wait=True)
         display.display(plt.gcf())
         
-        # print("loop 3")
-
-# obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
-obstacles = []
-
-plotting = True
-simulation = True
+        
 
 if __name__ == '__main__':
     manager = Manager()
@@ -620,17 +634,16 @@ if __name__ == '__main__':
     robot_data = manager.list()
     goal_data = manager.list()
 
-    if not simulation:
-        serializer = Serializer()
-
     # Multiprocessing
     wl_goal_value = Value('f',0)
     wr_goal_value = Value('f',0)
+    current_wl = Value('f',0)
+    current_wr = Value('f',0)
     
-    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data))
+    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr))
 
     if not simulation:
-        proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value))
+        proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value,current_wl, current_wr))
     if plotting:
         proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
 
@@ -645,3 +658,6 @@ if __name__ == '__main__':
         proc2.join()
     if plotting:
         proc3.join()
+    
+
+     

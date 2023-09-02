@@ -6,6 +6,7 @@ if __name__ == '__main__':
     ser.reset_input_buffer()
     while True:
         ser.write(b"Hello from Raspberry Pi!\n")
+        # print("hello")
         line = ser.readline().decode('utf-8').rstrip()
-        # print(line)
+        print(line)
         time.sleep(1)
