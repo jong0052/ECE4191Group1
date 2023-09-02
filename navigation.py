@@ -368,9 +368,9 @@ class GoalSetter():
         self.beta = 0.1 # th factor
 
         # Goal time
-        self.threshold_time = 5
-        self.last = time.time()
-        self.accumulative_time = 0
+        # self.threshold_time = 5
+        # self.last = time.time()
+        # self.accumulative_time = 0
 
     def get_current_goal(self):
         if (self.current_id < len(self.goals)):
@@ -393,19 +393,20 @@ class GoalSetter():
         cost = self.alpha*((goal_x-robot_x)**2 + (goal_y-robot_y)**2) + self.beta*(e_th**2)
 
         if cost < self.threshold:
-            dt = time.time() - self.last
-            self.accumulative_time += dt
-            self.last = time.time()
+            return True
+            # dt = time.time() - self.last
+            # self.accumulative_time += dt
+            # self.last = time.time()
 
-            if (self.accumulative_time > self.threshold_time):
-                self.accumulative_time = 0
-                return True
-            else:
-                return False
+            # if (self.accumulative_time > self.threshold_time):
+            #     self.accumulative_time = 0
+            #     return True
+            # else:
+            #     return False
         else:
-            self.accumulative_time = 0
-            self.last = time.time()
             return False
+            # self.accumulative_time = 0
+            # self.last = time.time()
 
     # Increment Goal. If there's another goal, return True. If ran out of goals, return False.
     def increment_goal(self):
@@ -425,7 +426,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
     goal_setter = GoalSetter()
 
     goal_setter.add_new_goal(0.3, 0.2, math.pi)
-    # goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
+    goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
 
     while goal_setter.increment_goal():
 
@@ -508,7 +509,32 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
 
                 
 
-            print(f"Reached Goal {goal_setter.current_id}, sleeping for 5 seconds.")
+            # Hardcode wait for Milestone 1
+            print(f"Reached Goal {goal_setter.current_id}, I am going to wait for 5 seconds.")
+            start_wait = time.time()
+            total_wait = 5
+            dt = 0
+
+            while (dt <= total_wait):
+                dt = time.time() - start_wait
+                v, w = 0, 0
+
+                duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
+                wl_goal_value.value = wl_goal
+                wr_goal_value.value = wr_goal
+
+                # Simulate robot motion - send duty cycle command to controller
+                if (not simulation):
+                    wl = serializer.data.wl_current / 60 * 2*math.pi
+                    wr = serializer.data.wr_current / 60 * 2 * math.pi
+                    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
+                else:
+                    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
+
+                # Log data
+                poses.append([x,y,th])
+                robot_data[:] = []
+                robot_data.extend([robot.x, robot.y, robot.th])
 
 def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
     serializer = Serializer()
@@ -524,16 +550,10 @@ def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
         serializer.write()
         time.sleep(0.1)
         serializer.read()
-    
-        #if(serializer.ser.in_waiting>0):
-            #serializer.read()
-        #else:
-            
-        
+
+        # print("loop 2")
         current_wl.value = serializer.data.wl_current
         current_wr.value = serializer.data.wr_current
-
-        
 
 def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     poses_local = []
