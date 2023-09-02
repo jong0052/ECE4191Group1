@@ -70,7 +70,7 @@ def calibrateWheelRadius():
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(20, 80, 15)
+    wheel_velocities_range = range(10, 40, 10)
     delta_times = []
 
     for wheel_vel in wheel_velocities_range:
@@ -85,12 +85,12 @@ def calibrateWheelRadius():
                 continue
 
             # Drive the robot at the given speed for the given time
-            drive_robot(1, 1, tick=wheel_vel, time=delta_time)
+            drive_robot(1, 0, tick=wheel_vel, goal_time=delta_time)
 
-            uInput = input("Did the robot travel 1.2m? [y/N]")
+            uInput = input("Did the robot travel 1m? [y/N]")
             if uInput == 'y':
                 delta_times.append(delta_time)
-                print("Recording that the robot drove 1.2m in {:.2f} seconds at wheel speed {}.\n".format(delta_time,
+                print("Recording that the robot drove 1m in {:.2f} seconds at wheel speed {}.\n".format(delta_time,
                                                                                                         wheel_vel))
                 break
 
@@ -98,7 +98,7 @@ def calibrateWheelRadius():
     num = len(wheel_velocities_range)
     scale = 0
     for delta_time, wheel_vel in zip(delta_times, wheel_velocities_range):
-        scale += 1.2 / (delta_time * wheel_vel)
+        scale += 1 / (delta_time * wheel_vel)
     scale = scale / num
     print("The scale parameter is estimated as {:.6f} m/ticks.".format(scale))
 
@@ -114,7 +114,7 @@ def calibrateBaseline(scale):
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(30, 60, 10)
+    wheel_velocities_range = range(10, 40, 10)
     delta_times = []
 
     for wheel_vel in wheel_velocities_range:
@@ -129,7 +129,7 @@ def calibrateBaseline(scale):
                 continue
 
             # Spin the robot at the given speed for the given time
-            drive_robot(1, 1, tick=20, turning_tick=wheel_vel, time=delta_time)
+            drive_robot(0, 1, tick=20, turning_tick=wheel_vel, goal_time=delta_time)
 
             uInput = input("Did the robot spin 360deg?[y/N]")
             if uInput == 'y':
@@ -155,29 +155,38 @@ def drive_robot(v, w, tick = 20, turning_tick=5, goal_time = 1):
     wl = v * tick - w * turning_tick
     wr = v * tick + w * turning_tick
 
-    serializer = Serializer()
     last = time.time()
     dt = 0
 
     while dt < goal_time:
         dt = time.time() - last
-        
-        wl_goal_rpm = wl * 60 / (2 * math.pi)
-        wr_goal_rpm = wr * 60 / (2 * math.pi)
 
-        serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
+        serializer.data.update(wl_goal=wl, wr_goal=wr)
         serializer.write()
+        time.sleep(0.2)
+        serializer.read()
 
-        time.sleep(0.1)
+    
+    serializer.data.update(wl_goal=0, wr_goal=0)
+    serializer.write()
+    time.sleep(0.2)
+
+    serializer.read()
+    
+serializer = Serializer()
 
 if __name__ == '__main__':
+    serializer.data.update(wl_goal=0, wr_goal=0)
+    serializer.write()
 
     dataDir = "{}/param/".format(os.getcwd())
 
-    print('Calibrating PiBot scale...\n')
-    scale = calibrateWheelRadius()
-    fileNameS = "{}scale.txt".format(dataDir)
-    np.savetxt(fileNameS, np.array([scale]), delimiter=',')
+    #print('Calibrating PiBot scale...\n')
+    #scale = calibrateWheelRadius()
+    #fileNameS = "{}scale.txt".format(dataDir)
+    #np.savetxt(fileNameS, np.array([scale]), delimiter=',')
+    
+    scale = 0.03
 
     print('Calibrating PiBot baseline...\n')
     baseline = calibrateBaseline(scale)

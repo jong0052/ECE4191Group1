@@ -76,8 +76,8 @@ void parseStringToFloats(String input, float &wl_current, float &wr_current, flo
 // Define the number of motors
 #define NUM_MOTORS 2
 // Define the number of counts of encoder for a full revolution.
-#define ENC_COUNT_REV 894 // For now we assume two motors are similar this may come to bite me in the future
-
+#define ENC_COUNT_REV 896 // For now we assume two motors are similar this may come to bite me in the future
+#define ENC_COUNT_REV2 894
 // Define the pin ins and outs for 
 const int enca[]={2, 3}; // Define the input pin for Encoder A
 const int encb[]={6, 7}; // Define the input pin for Encoder B
@@ -203,8 +203,8 @@ void loop() {
   v1[0] = (velocity1[0]/ENC_COUNT_REV)*60;
   v2[0] = (velocity2[0]/ENC_COUNT_REV)*60;
 
-  v1[1] = (velocity1[1]/ENC_COUNT_REV)*60;
-  v2[1] = (velocity2[1]/ENC_COUNT_REV)*60;
+  v1[1] = (velocity1[1]/ENC_COUNT_REV2)*60;
+  v2[1] = (velocity2[1]/ENC_COUNT_REV2)*60;
   
   // Low-pass Filter (40 Hz Cutoff Pretty Good) <- Like Really need to change
   

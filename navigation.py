@@ -17,7 +17,7 @@ from multiprocessing import Process, Value, Manager
 obstacles = []
 
 plotting = True
-simulation = False
+simulation = True
 
 class DiffDriveRobot:
 
@@ -139,9 +139,11 @@ class TentaclePlanner:
             #self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
             self.tentacles = []
             for v in range(0,10, 1):
-                for w in range(-3,3, 1):
-                    self.tentacles.append((v/300, w/10))
-
+               for w in range(-6,6, 1):
+                   self.tentacles.append((v/300, w/20))
+            
+            
+            
             # print(self.tentacles)
   
         self.alpha = alpha
@@ -305,7 +307,7 @@ class Map:
 
 class Serializer:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+        self.ser = serial.Serial('/dev/ttyUSB1', 9600, timeout=1)
         self.ser.reset_input_buffer()
         self.data = SerialData()
 
@@ -363,7 +365,7 @@ class GoalSetter():
         self.current_id = -1
 
         # Thresholds for reaching goal
-        self.threshold = 1e-1
+        self.threshold = 1e-2
         self.alpha = 1 # x y factor
         self.beta = 0.1 # th factor
 
@@ -419,14 +421,15 @@ class GoalSetter():
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0545, wheel_sep=0.213,x=-0.3,y=-0.4,th=0)
-    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0545,wheel_sep=0.213)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0305, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0305,wheel_sep=0.22)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
-
-    goal_setter.add_new_goal(0.3, -0.4, 0)
-    # goal_setter.add_new_goal(-0.3, 0.2, math.pi/2)
+    
+    # goal_setter.add_new_goal(0.3,0.0, math.pi)
+    goal_setter.add_new_goal(0.3, 0.2, math.pi)
+    goal_setter.add_new_goal(-0.3, 0.2, math.pi)
 
     while goal_setter.increment_goal():
 
@@ -508,6 +511,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 goal_data.extend(goal_setter.get_current_goal())
                 
                 print("loop 1")
+                time.sleep(0.1)
 
                 
 
@@ -537,6 +541,8 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 poses.append([x,y,th])
                 robot_data[:] = []
                 robot_data.extend([robot.x, robot.y, robot.th])
+                
+                time.sleep(0.1)
 
 def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
     serializer = Serializer()
