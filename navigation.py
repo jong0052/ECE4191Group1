@@ -17,7 +17,7 @@ from multiprocessing import Process, Value, Manager
 obstacles = []
 
 plotting = True
-simulation = False
+simulation = True
 
 class DiffDriveRobot:
 
@@ -525,8 +525,8 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = serializer.data.wl_current / 60 * 2*math.pi
-                    wr = serializer.data.wr_current / 60 * 2 * math.pi
+                    wl = current_wl.value / 60 * 2*math.pi
+                    wr = current_wr.value / 60 * 2 * math.pi
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
