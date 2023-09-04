@@ -119,7 +119,7 @@ float wr_goal = 0;
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // For two motors set up the pin output and input
   for(int k = 0; k < NUM_MOTORS; k++){
@@ -128,7 +128,7 @@ void setup() {
     pinMode(pwm[k], OUTPUT);
     pinMode(in[k], OUTPUT);
 
-    pid[k].setParams(10, 0, 10, 255);
+    pid[k].setParams(25, 0, 0, 255);
   }
   
   // Trigger an interrupt when encoder A rises

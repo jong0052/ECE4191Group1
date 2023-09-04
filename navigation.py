@@ -17,7 +17,7 @@ from multiprocessing import Process, Value, Manager
 obstacles = []
 
 plotting = True
-simulation = True
+simulation = False
 
 class DiffDriveRobot:
 
@@ -307,7 +307,7 @@ class Map:
 
 class Serializer:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB1', 9600, timeout=1)
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
         self.ser.reset_input_buffer()
         self.data = SerialData()
 
@@ -432,7 +432,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
     goal_setter.add_new_goal(-0.3, 0.2, math.pi)
 
     while goal_setter.increment_goal():
-
+            
             final_goal = np.array(goal_setter.get_current_goal())
             start = np.array([robot.x, robot.y, robot.th])
             expand_dis = 0.05
@@ -442,6 +442,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
             rrt_plan_index = 0
 
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
+                
                 # Map Generation for obstacles
                 map.update(robot.x, robot.y, robot.th)
 
@@ -472,8 +473,9 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = current_wl.value / 60 * 2*math.pi
-                    wr = current_wr.value / 60 * 2 * math.pi
+                    wl = ((current_wl.value/ 60)* 2*math.pi)
+                    wr = ((current_wr.value/ 60)* 2*math.pi)
+                    #* 60 /( 2*math.pi)
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
@@ -511,7 +513,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 goal_data.extend(goal_setter.get_current_goal())
                 
                 print("loop 1")
-                time.sleep(0.1)
+                
 
                 
 
@@ -531,8 +533,8 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = current_wl.value / 60 * 2*math.pi
-                    wr = current_wr.value / 60 * 2 * math.pi
+                    wl = (current_wl.value / 60) * 2*math.pi
+                    wr = (current_wr.value / 60) * 2 * math.pi
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
@@ -556,14 +558,14 @@ def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
         # print(wr_goal_rpm)
         serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
         serializer.write()
-        time.sleep(0.1)
+        time.sleep(0.013)
         serializer.read()
 
         # print("loop 2")
         current_wl.value = serializer.data.wl_current
         current_wr.value = serializer.data.wr_current
         
-        print("loop 2")
+        #print("loop 2")
 
 def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     poses_local = []
