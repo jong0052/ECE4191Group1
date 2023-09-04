@@ -17,7 +17,7 @@ from multiprocessing import Process, Value, Manager
 obstacles = []
 
 plotting = True
-simulation = True
+simulation = False
 
 if not simulation:
     import RPi.GPIO as GPIO
@@ -221,14 +221,14 @@ class Map:
         # Constants
         self.width = width
         self.height = height
-        self.obstacle_dots = None
+        self.obstacle_dots = np.array([[100, 100]])
         self.true_obstacles = true_obstacles
         self.obstacle_size = 0.15
         self.obstacle_closest_threshold = 0.1
 
         self.initialize = True
 
-    def update(self, robot_x, robot_y, robot_th, us_left=100, us_front=100, us_right=100):
+    def update(self, robot_x, robot_y, robot_th, usFront_update, us_left=100, us_front=100, us_right=100):
         # Ultrasonic Distance
         if simulation:
             distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
@@ -238,7 +238,9 @@ class Map:
             # self.generate_obstacle(robot_x, robot_y, robot_th, us_left, 0, 0, 0)
 
             # us_front
-            self.generate_obstacle(robot_x, robot_y, robot_th, us_front, 0, 0, 0)
+            if (usFront_update.value == 1):
+                self.generate_obstacle(robot_x, robot_y, robot_th, us_front, 0, 0, 0)
+                usFront_update.value = 0
 
             # # us_right
             # self.generate_obstacle(robot_x, robot_y, robot_th, us_right, 0, 0, 0)
@@ -346,18 +348,18 @@ class Map:
 
 class Serializer:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB1', 115200, timeout=0.1)
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.1)
         self.ser.reset_input_buffer()
         self.data = SerialData()
 
     def read(self):
         line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-        print("serial read: " + str(line))
+        # print("serial read: " + str(line))
         self.decode_string(line)
     
     def write(self):
         self.ser.write(self.encode_string())
-        print("serial write: " + str(self.encode_string()))
+        # print("serial write: " + str(self.encode_string()))
 
     def decode_string(self,input_string):
         # Extracting numbers from the input_string using string manipulation
@@ -458,7 +460,7 @@ class GoalSetter():
         else:
             return False
 
-def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr, usLeft_value, usFront_value, usRight_value):
+def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
     robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.03, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
     controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.03, wheel_sep=0.22)
@@ -483,7 +485,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
                 
                 # Map Generation for obstacles
-                map.update(robot.x, robot.y, robot.th)
+                map.update(robot.x, robot.y, robot.th, usFront_update, 100, usFront_value.value, 100)
 
                 temp_goal = rrt_plan[rrt_plan_index]
                 if map.is_collision_free(robot.x, robot.y):
@@ -595,14 +597,18 @@ def distance(trig, echo):
 
         StartTime = time.time()
         StopTime = time.time()
+        timeout = time.time()
+        timeout_threshold = 0.2
 
         # save StartTime
-        while GPIO.input(echo) == 0:
+        while GPIO.input(echo) == 0 and (time.time()- timeout) < 0.2:
             StartTime = time.time()
+            # print("start")
 
         # save time of arrival
-        while GPIO.input(echo) == 1:
+        while GPIO.input(echo) == 1 and (time.time() - timeout) < 0.2:
             StopTime = time.time()
+            # print("stop")
 
         # time difference between start and arrival
         TimeElapsed = StopTime - StartTime
@@ -612,11 +618,12 @@ def distance(trig, echo):
 
         return dist
 
-def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value):
+def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update):
     while True:
-        usFront_value.value = distance(GPIO_TRIGGER3, GPIO_ECHO3)
+        usFront_value.value = distance(GPIO_TRIGGER3, GPIO_ECHO3) / 100 - 0.12
+        usFront_update.value = 1
         print(usFront_value.value)
-        time.sleep(0.1)
+        time.sleep(0.05)
     #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
     #   usRight_value.value = distance(GPIO_TRIGGER2, GPIO_ECHO2)
 
@@ -747,28 +754,29 @@ if __name__ == '__main__':
     current_wl = Value('f',0)
     current_wr = Value('f',0)
     usLeft_value = Value('f', 0)
-    usFront_value = Value('f', 0)
+    usFront_value = Value('f', 100)
+    usFront_update = Value('f', 0)
     usRight_value = Value('f', 0)
     
-    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr, usLeft_value, usFront_value, usRight_value))
+    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update))
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value,current_wl, current_wr))
-        procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value))
+        #procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update))
     if plotting:
         proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
 
     proc1.start()
     if not simulation:
         proc2.start()
-        procUS.start()
+        #procUS.start()
     if plotting:
         proc3.start()
 
     proc1.join()
     if not simulation:
         proc2.join()
-        procUS.join()
+        #procUS.join()
     if plotting:
         proc3.join()
     
