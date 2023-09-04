@@ -17,7 +17,29 @@ from multiprocessing import Process, Value, Manager
 obstacles = []
 
 plotting = True
-simulation = False
+simulation = True
+
+if not simulation:
+    import RPi.GPIO as GPIO
+
+    #start Luke's code
+    # GPIO Mode (BOARD / BCM)
+    GPIO.setmode(GPIO.BCM)
+
+    # set GPIO Pins
+    GPIO_TRIGGER1 = 23
+    GPIO_ECHO1 = 24
+    GPIO_TRIGGER2 = 17
+    GPIO_ECHO2 = 27
+    GPIO_TRIGGER3 = 5
+    GPIO_ECHO3 = 6
+    # set GPIO direction (IN / OUT)
+    GPIO.setup(GPIO_TRIGGER1, GPIO.OUT)
+    GPIO.setup(GPIO_ECHO1, GPIO.IN)
+    GPIO.setup(GPIO_TRIGGER2, GPIO.OUT)
+    GPIO.setup(GPIO_ECHO2, GPIO.IN)
+    GPIO.setup(GPIO_TRIGGER3, GPIO.OUT)
+    GPIO.setup(GPIO_ECHO3, GPIO.IN)
 
 class DiffDriveRobot:
 
@@ -206,43 +228,48 @@ class Map:
 
         self.initialize = True
 
-    def update(self, robot_x, robot_y, robot_th):
+    def update(self, robot_x, robot_y, robot_th, us_left=100, us_front=100, us_right=100):
         # Ultrasonic Distance
-        ultrasonic_distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
-        
+        if simulation:
+            distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
+            self.generate_obstacle(robot_x, robot_y, robot_th, distance, 0, 0, 0)
+        else:
+            # us_left
+            # self.generate_obstacle(robot_x, robot_y, robot_th, us_left, 0, 0, 0)
+
+            # us_front
+            self.generate_obstacle(robot_x, robot_y, robot_th, us_front, 0, 0, 0)
+
+            # # us_right
+            # self.generate_obstacle(robot_x, robot_y, robot_th, us_right, 0, 0, 0)
         # Generate obstacles
-        self.generate_obstacle(robot_x, robot_y, robot_th, ultrasonic_distance)
 
     # Simulation
     def check_ultrasonic(self, robot_x, robot_y, robot_th):
 
-        if True: # if simulation
-            # Draw a line from robot to check true_obstacles
-            curr_x = robot_x
-            curr_y = robot_y
-            distance = 0
-            increment = 0.01
-            hit = False
-            
-            while (not hit):
-                # Increment curr_x and curr_y
-                curr_x = curr_x + np.cos(robot_th) * increment
-                curr_y = curr_y + np.sin(robot_th) * increment
-                distance = distance + increment
+        # Draw a line from robot to check true_obstacles
+        curr_x = robot_x
+        curr_y = robot_y
+        distance = 0
+        increment = 0.01
+        hit = False
+        
+        while (not hit):
+            # Increment curr_x and curr_y
+            curr_x = curr_x + np.cos(robot_th) * increment
+            curr_y = curr_y + np.sin(robot_th) * increment
+            distance = distance + increment
 
-                # Check curr_x and curr_y
-                # min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
-                if (not self.is_collision_free(curr_x, curr_y)
-                    or np.abs(curr_x) > self.width / 2
-                    or np.abs(curr_y) > self.height / 2):
-                    # print(min_dist)
-                    # print(curr_x)
-                    # print(curr_y)
-                    # print(distance)
-                    hit = True
-        else:
-            # TODO: Ultrasonic Reader
-            distance = 0
+            # Check curr_x and curr_y
+            # min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
+            if (not self.is_collision_free(curr_x, curr_y)
+                or np.abs(curr_x) > self.width / 2
+                or np.abs(curr_y) > self.height / 2):
+                # print(min_dist)
+                # print(curr_x)
+                # print(curr_y)
+                # print(distance)
+                hit = True
 
         return distance
     
@@ -258,7 +285,21 @@ class Map:
         
         return True  # safe
 
-    def generate_obstacle(self, robot_x, robot_y, robot_th, distance):
+    def generate_obstacle(self, robot_x, robot_y, robot_th, distance, us_x=0, us_y=0, us_th=0):
+        # def calc(rx, ry, theta, d, wx, wy,th):
+        #     mat1 = np.array([[math.cos(theta), -1*math.sin(theta)],[math.sin(theta), math.cos(theta)]])
+        #     mat2 = np.array([[math.cos(th), -1*math.sin(th)],[math.sin(th), math.cos(th)]])
+        #     d_m = np.array([[d],
+        #     [0]])
+        #     r_m = np.array([[rx],
+        #     [ry]])
+        #     w_m = np.array([[wx],
+        #     [wy]])
+        #     return mat1@(mat2@d_m + r_m)+w_m
+
+        # obs = calc(robot_x, robot_y, robot_th, distance, us_x, us_y, us_th)
+        # print(obs)
+
         # Append to Obstacle_dots
         obs_x = robot_x + distance * np.cos(robot_th)
         obs_y = robot_y + distance * np.sin(robot_th)
@@ -284,8 +325,6 @@ class Map:
 
             self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
 
-        # Get rid of any obstacles in line of sight 
-        # TODO
 
     def get_obstacle_list(self):
         obstacle_list = []
@@ -419,7 +458,7 @@ class GoalSetter():
         else:
             return False
 
-def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr):
+def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr, usLeft_value, usFront_value, usRight_value):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
     robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.03, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
     controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.03, wheel_sep=0.22)
@@ -545,6 +584,39 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 robot_data.extend([robot.x, robot.y, robot.th])
                 
                 time.sleep(0.1)
+
+def distance(trig, echo):
+        # set Trigger to HIGH
+        GPIO.output(trig, True)
+
+        # set Trigger after 0.01ms to LOW
+        time.sleep(0.00001)
+        GPIO.output(trig, False)
+
+        StartTime = time.time()
+        StopTime = time.time()
+
+        # save StartTime
+        while GPIO.input(echo) == 0:
+            StartTime = time.time()
+
+        # save time of arrival
+        while GPIO.input(echo) == 1:
+            StopTime = time.time()
+
+        # time difference between start and arrival
+        TimeElapsed = StopTime - StartTime
+        # multiply with the sonic speed (34300 cm/s)
+        # and divide by 2, because there and back
+        dist = (TimeElapsed * 34300) / 2
+
+        return dist
+
+def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value):
+    while True:
+        usFront_value.value = distance(GPIO_TRIGGER3, GPIO_ECHO3)
+    #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
+    #   usRight_value.value = distance(GPIO_TRIGGER2, GPIO_ECHO2)
 
 def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
     serializer = Serializer()
@@ -672,23 +744,29 @@ if __name__ == '__main__':
     wr_goal_value = Value('f',0)
     current_wl = Value('f',0)
     current_wr = Value('f',0)
+    usLeft_value = Value('f', 0)
+    usFront_value = Value('f', 0)
+    usRight_value = Value('f', 0)
     
-    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr))
+    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr, usLeft_value, usFront_value, usRight_value))
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value,current_wl, current_wr))
+        procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value))
     if plotting:
         proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
 
     proc1.start()
     if not simulation:
         proc2.start()
+        procUS.start()
     if plotting:
         proc3.start()
 
     proc1.join()
     if not simulation:
         proc2.join()
+        procUS.join()
     if plotting:
         proc3.join()
     
