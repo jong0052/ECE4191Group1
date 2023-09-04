@@ -139,8 +139,8 @@ class TentaclePlanner:
             #self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
             self.tentacles = []
             for v in range(0,10, 1):
-               for w in range(-6,6, 1):
-                   self.tentacles.append((v/300, w/20))
+               for w in range(-10,10, 1):
+                   self.tentacles.append((v/100, w/10))
             
             
             
@@ -307,7 +307,7 @@ class Map:
 
 class Serializer:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.1)
         self.ser.reset_input_buffer()
         self.data = SerialData()
 
@@ -421,8 +421,8 @@ class GoalSetter():
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0305, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
-    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0305,wheel_sep=0.22)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.03, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.03, wheel_sep=0.22)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
@@ -558,7 +558,7 @@ def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
         # print(wr_goal_rpm)
         serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
         serializer.write()
-        time.sleep(0.013)
+        time.sleep(0.01)
         serializer.read()
 
         # print("loop 2")
