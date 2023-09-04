@@ -615,6 +615,8 @@ def distance(trig, echo):
 def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value):
     while True:
         usFront_value.value = distance(GPIO_TRIGGER3, GPIO_ECHO3)
+        print(usFront_value.value)
+        time.sleep(0.1)
     #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
     #   usRight_value.value = distance(GPIO_TRIGGER2, GPIO_ECHO2)
 
