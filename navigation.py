@@ -223,8 +223,8 @@ class Map:
         self.height = height
         self.obstacle_dots = np.array([[100, 100]])
         self.true_obstacles = true_obstacles
-        self.obstacle_size = 0.15
-        self.obstacle_closest_threshold = 0.1
+        self.obstacle_size = 0.25
+        self.obstacle_closest_threshold = 0.05
 
         self.initialize = True
 
@@ -263,7 +263,7 @@ class Map:
             distance = distance + increment
 
             # Check curr_x and curr_y
-            # min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
+            #min_dist = np.min(np.sqrt((curr_x-self.true_obstacles[:,0])**2+(curr_y-self.true_obstacles[:,1])**2))
             if (not self.is_collision_free(curr_x, curr_y)
                 or np.abs(curr_x) > self.width / 2
                 or np.abs(curr_y) > self.height / 2):
@@ -553,7 +553,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 goal_data[:] = []
                 goal_data.extend(goal_setter.get_current_goal())
                 
-                print("loop 1")
+                #print("loop 1")
                 
 
                 
@@ -589,39 +589,63 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
 
 def distance(trig, echo):
         # set Trigger to HIGH
+        
         GPIO.output(trig, True)
 
-        # set Trigger after 0.01ms to LOW
+            # set Trigger after 0.01ms to LOW
         time.sleep(0.00001)
         GPIO.output(trig, False)
 
         StartTime = time.time()
         StopTime = time.time()
         timeout = time.time()
-        timeout_threshold = 0.2
+        timeout_threshold = 0.005
 
-        # save StartTime
-        while GPIO.input(echo) == 0 and (time.time()- timeout) < 0.2:
+            # save StartTime
+        while GPIO.input(echo) == 0 and (time.time()- timeout) < timeout_threshold:
             StartTime = time.time()
-            # print("start")
+                # print("start")
 
-        # save time of arrival
-        while GPIO.input(echo) == 1 and (time.time() - timeout) < 0.2:
+            # save time of arrival
+        while GPIO.input(echo) == 1 and (time.time() - timeout) < timeout_threshold:
             StopTime = time.time()
-            # print("stop")
+                # print("stop")
 
-        # time difference between start and arrival
+            # time difference between start and arrival
         TimeElapsed = StopTime - StartTime
-        # multiply with the sonic speed (34300 cm/s)
-        # and divide by 2, because there and back
+            # multiply with the sonic speed (34300 cm/s)
+            # and divide by 2, because there and back
         dist = (TimeElapsed * 34300) / 2
 
         return dist
 
+def multi_dist (num_samp = 5):
+    dist_vec = []
+    print_vec = []
+
+    i = 0
+    for i in range(5):
+        for i in range (num_samp):
+            dist = distance(GPIO_TRIGGER3, GPIO_ECHO3)
+            if (dist >= 5 and dist <=40):
+                dist_vec.append(dist)
+                i+=1
+        mean_dist = np.mean(dist_vec)
+        print_vec.append(mean_dist)
+    result = np.median(print_vec)
+    return result
+
 def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update):
     while True:
-        usFront_value.value = distance(GPIO_TRIGGER3, GPIO_ECHO3) / 100 - 0.12
-        usFront_update.value = 1
+        value = multi_dist() / 100 
+        print(value)
+        if (value > 0.05 and value < 0.40):
+            usFront_value.value = value + 0.12
+            usFront_update.value = 1
+        else:
+            usFront_value.value = 100
+            usFront_update.value = 1
+    
         print(usFront_value.value)
         time.sleep(0.05)
     #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
@@ -762,21 +786,21 @@ if __name__ == '__main__':
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value,current_wl, current_wr))
-        #procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update))
+        procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update))
     if plotting:
         proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
 
     proc1.start()
     if not simulation:
         proc2.start()
-        #procUS.start()
+        procUS.start()
     if plotting:
         proc3.start()
 
     proc1.join()
     if not simulation:
         proc2.join()
-        #procUS.join()
+        procUS.join()
     if plotting:
         proc3.join()
     
