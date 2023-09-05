@@ -9,7 +9,7 @@ sys.path.insert(0, "./../util")
 
 class Serializer:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.1)
         self.ser.reset_input_buffer()
         self.data = SerialData()
 
@@ -181,8 +181,8 @@ if __name__ == '__main__':
 
     dataDir = "{}/param/".format(os.getcwd())
 
-    #print('Calibrating PiBot scale...\n')
-    #scale = calibrateWheelRadius()
+    print('Calibrating PiBot scale...\n')
+    scale = calibrateWheelRadius()
     #fileNameS = "{}scale.txt".format(dataDir)
     #np.savetxt(fileNameS, np.array([scale]), delimiter=',')
     

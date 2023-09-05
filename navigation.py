@@ -223,7 +223,7 @@ class Map:
         self.height = height
         self.obstacle_dots = np.array([[100, 100]])
         self.true_obstacles = true_obstacles
-        self.obstacle_size = 0.25
+        self.obstacle_size = 0.15
         self.obstacle_closest_threshold = 0.05
 
         self.initialize = True
@@ -309,23 +309,33 @@ class Map:
         point = np.array([[obs_x, obs_y]])
 
         if (self.initialize):
-            self.obstacle_dots = np.array(point)
+            self.obstacle_dots = np.array([[2,2]])
+            for i in range(-6, 7, 1):
+                i = i / 10
+                # Arena
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[-0.6, i]])), axis=0)
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.6, i]])), axis=0)
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, -0.6]])), axis=0)
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, 0.6]])), axis=0)
+                # print("test")
+                
             self.initialize = False
-        else:
-            # print(self.obstacle_dots)
+            print(f"Obstacles: {self.obstacle_dots}")
+        
+        # print(self.obstacle_dots)
+        # print(point)
+        # If obstacle is within 0.01 of another point, don't add it to avoid clutter.
+        for dot in self.obstacle_dots:
+            # print(dot)
             # print(point)
-            # If obstacle is within 0.01 of another point, don't add it to avoid clutter.
-            for dot in self.obstacle_dots:
-                # print(dot)
-                # print(point)
-                dx = dot[0] - point[0][0]
-                dy = dot[1] - point[0][1]
-                h = math.sqrt(dx ** 2 + dy ** 2)
+            dx = dot[0] - point[0][0]
+            dy = dot[1] - point[0][1]
+            h = math.sqrt(dx ** 2 + dy ** 2)
 
-                if h < self.obstacle_closest_threshold:
-                    return
+            if h < self.obstacle_closest_threshold or obs_y < 0:
+                return
 
-            self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
+        self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
 
 
     def get_obstacle_list(self):
@@ -403,6 +413,7 @@ class SerialData:
 class GoalSetter():
     def __init__(self):
         self.goals = []
+        self.wait_times = []
         self.current_id = -1
 
         # Thresholds for reaching goal
@@ -414,19 +425,27 @@ class GoalSetter():
         # self.threshold_time = 5
         # self.last = time.time()
         # self.accumulative_time = 0
+        
 
     def get_current_goal(self):
         if (self.current_id < len(self.goals)):
             return self.goals[self.current_id]
         else:
             return []
+       
+    def get_current_wait(self):
+        if (self.current_id < len(self.wait_times)):
+            return self.wait_times[self.current_id]
+        else:
+            return 5
         
     def add_emergency_goal(self, goal_x, goal_y, goal_th):
         self.goals.insert(self.current_id, [goal_x, goal_y, goal_th])
 
-    def add_new_goal(self, goal_x, goal_y, goal_th):
+    def add_new_goal(self, goal_x, goal_y, goal_th, wait_time = 5):
         self.goals.append([goal_x, goal_y, goal_th])
-
+        self.wait_times.append(wait_time)
+        
     def check_reach_goal(self, robot_x, robot_y, robot_th):
         goal_x, goal_y, goal_th = self.get_current_goal()
 
@@ -462,24 +481,28 @@ class GoalSetter():
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.03, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
-    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.03, wheel_sep=0.22)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0254, wheel_sep=0.1947,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0254, wheel_sep=0.1947)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
     
     # goal_setter.add_new_goal(0.3,0.0, math.pi)
-    goal_setter.add_new_goal(0.3, 0.2, math.pi)
-    goal_setter.add_new_goal(-0.3, 0.2, math.pi)
+    goal_setter.add_new_goal(0, -0.4, math.pi/2, 1)
+    goal_setter.add_new_goal(0.3, -0.4, math.pi/2, 1)
+    goal_setter.add_new_goal(0.3, 0.2, math.pi, 5)
+    goal_setter.add_new_goal(-0.3, 0.2, math.pi, 5)
 
     while goal_setter.increment_goal():
             
             final_goal = np.array(goal_setter.get_current_goal())
+            print(f"New Goal: {final_goal}")
             start = np.array([robot.x, robot.y, robot.th])
             expand_dis = 0.05
             path_resolution = 0.01
             rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
             rrt_plan = rrtc.planning()
+            print(rrt_plan)
             rrt_plan_index = 0
 
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
@@ -553,15 +576,15 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 goal_data[:] = []
                 goal_data.extend(goal_setter.get_current_goal())
                 
-                #print("loop 1")
+                print("loop 1")
                 
 
                 
 
             # Hardcode wait for Milestone 1
-            print(f"Reached Goal {goal_setter.current_id}, I am going to wait for 5 seconds.")
+            print(f"Reached Goal {goal_setter.current_id}, I am going to wait for {goal_setter.get_current_wait()} seconds.")
             start_wait = time.time()
-            total_wait = 5
+            total_wait = goal_setter.get_current_wait()
             dt = 0
 
             while (dt <= total_wait):
@@ -599,7 +622,7 @@ def distance(trig, echo):
         StartTime = time.time()
         StopTime = time.time()
         timeout = time.time()
-        timeout_threshold = 0.005
+        timeout_threshold = 0.05
 
             # save StartTime
         while GPIO.input(echo) == 0 and (time.time()- timeout) < timeout_threshold:
@@ -638,15 +661,15 @@ def multi_dist (num_samp = 5):
 def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update):
     while True:
         value = multi_dist() / 100 
-        print(value)
+        # print(value)
         if (value > 0.05 and value < 0.40):
             usFront_value.value = value + 0.12
             usFront_update.value = 1
         else:
-            usFront_value.value = 100
+            usFront_value.value = 2
             usFront_update.value = 1
     
-        print(usFront_value.value)
+        # print(usFront_value.value)
         time.sleep(0.05)
     #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
     #   usRight_value.value = distance(GPIO_TRIGGER2, GPIO_ECHO2)
@@ -757,7 +780,7 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
         display.clear_output(wait=True)
         display.display(plt.gcf())
         
-        print("loop 3")
+        # print("loop 3")
         
 
 if __name__ == '__main__':
