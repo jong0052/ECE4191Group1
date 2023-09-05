@@ -650,7 +650,7 @@ def multi_dist (num_samp = 5):
     for i in range(5):
         for i in range (num_samp):
             dist = distance(GPIO_TRIGGER3, GPIO_ECHO3)
-            if (dist >= 5 and dist <=40):
+            if (dist >= 3 and dist <=40):
                 dist_vec.append(dist)
                 i+=1
         mean_dist = np.mean(dist_vec)
@@ -662,7 +662,7 @@ def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, 
     while True:
         value = multi_dist() / 100 
         # print(value)
-        if (value > 0.05 and value < 0.40):
+        if (value > 0.03 and value < 0.40):
             usFront_value.value = value + 0.12
             usFront_update.value = 1
         else:
