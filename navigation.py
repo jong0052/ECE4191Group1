@@ -27,12 +27,15 @@ if not simulation:
     GPIO.setmode(GPIO.BCM)
 
     # set GPIO Pins
-    GPIO_TRIGGER1 = 23
+    GPIO_TRIGGER1 = 23 # Right
     GPIO_ECHO1 = 24
-    GPIO_TRIGGER2 = 17
-    GPIO_ECHO2 = 27
-    GPIO_TRIGGER3 = 5
-    GPIO_ECHO3 = 6
+    GPIO_TRIGGER2 = 17 # Left
+    GPIO_ECHO2 = 27 # Left
+    GPIO_TRIGGER3 = 5 # Middle
+    GPIO_ECHO3 = 6 # Middle
+    
+    ECHO2_arr = [17, 5, 23]
+    TRIG_arr = [27, 6, 24]
     # set GPIO direction (IN / OUT)
     GPIO.setup(GPIO_TRIGGER1, GPIO.OUT)
     GPIO.setup(GPIO_ECHO1, GPIO.IN)
@@ -228,7 +231,7 @@ class Map:
 
         self.initialize = True
 
-    def update(self, robot_x, robot_y, robot_th, usFront_update, us_left=100, us_front=100, us_right=100):
+    def update(self, robot_x, robot_y, robot_th, usLeft_update,usFront_update,  usRight_update, us_left=100, us_front=100, us_right=100):
         # Ultrasonic Distance
         if simulation:
             distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
@@ -241,6 +244,16 @@ class Map:
             if (usFront_update.value == 1):
                 self.generate_obstacle(robot_x, robot_y, robot_th, us_front, 0, 0, 0)
                 usFront_update.value = 0
+                
+            # us_front
+            if (usLeft_update.value == 1):
+                self.generate_obstacle(robot_x, robot_y, robot_th, us_left, -0.055, 0, 0)
+                usLeft_update.value = 0
+                
+            # us_front
+            if (usRight_update.value == 1):
+                self.generate_obstacle(robot_x, robot_y, robot_th, us_right, 0.055, 0, 0)
+                usRight_update.value = 0
 
             # # us_right
             # self.generate_obstacle(robot_x, robot_y, robot_th, us_right, 0, 0, 0)
@@ -303,8 +316,8 @@ class Map:
         # print(obs)
 
         # Append to Obstacle_dots
-        obs_x = robot_x + distance * np.cos(robot_th)
-        obs_y = robot_y + distance * np.sin(robot_th)
+        obs_x = robot_x + distance * np.cos(robot_th) + us_x * np.cos(robot_th - math.pi/ 2)
+        obs_y = robot_y + distance * np.sin(robot_th) + us_x * np.sin(robot_th - math.pi/2)
 
         point = np.array([[obs_x, obs_y]])
 
@@ -318,9 +331,16 @@ class Map:
                 self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, -0.6]])), axis=0)
                 self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, 0.6]])), axis=0)
                 # print("test")
+            
+            for i in range(0, 7, 1):
+                i = i / 10
+                # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[-0.05, i]])), axis=0)
+                # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0, i]])), axis=0)
+                # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.05, i]])), axis=0)
                 
+            
             self.initialize = False
-            print(f"Obstacles: {self.obstacle_dots}")
+            #print(f"Obstacles: {self.obstacle_dots}")
         
         # print(self.obstacle_dots)
         # print(point)
@@ -332,8 +352,9 @@ class Map:
             dy = dot[1] - point[0][1]
             h = math.sqrt(dx ** 2 + dy ** 2)
 
-            if h < self.obstacle_closest_threshold or obs_y < 0:
-                return
+            if h < self.obstacle_closest_threshold or obs_y < -0.1 or obs_x > 0.125 or obs_x < -0.125:
+               return
+            
 
         self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
 
@@ -418,7 +439,7 @@ class GoalSetter():
 
         # Thresholds for reaching goal
         self.threshold = 1e-2
-        self.alpha = 1 # x y factor
+        self.alpha = 3 # x y factor
         self.beta = 0.1 # th factor
 
         # Goal time
@@ -481,17 +502,21 @@ class GoalSetter():
 
 def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update):
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0254, wheel_sep=0.1947,x=-0.3,y=-0.4,th=0)
-    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0254, wheel_sep=0.1947)
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0258, wheel_sep=0.22)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
     
     # goal_setter.add_new_goal(0.3,0.0, math.pi)
-    goal_setter.add_new_goal(0, -0.4, math.pi/2, 1)
-    goal_setter.add_new_goal(0.3, -0.4, math.pi/2, 1)
-    goal_setter.add_new_goal(0.3, 0.2, math.pi, 5)
-    goal_setter.add_new_goal(-0.3, 0.2, math.pi, 5)
+    goal_setter.add_new_goal(0, -0.3, math.pi/2, 1)
+    goal_setter.add_new_goal(0.325, -0.3, math.pi/2, 1)
+    goal_setter.add_new_goal(0.325, 0.2, math.pi, 10)
+    # goal_setter.add_new_goal(0.325, 0.2, math.pi, 10)
+    #goal_setter.add_new_goal(0.3, 0.2, -math.pi/2, 1)
+    #goal_setter.add_new_goal(0.3, -0.2, math.pi, 1)
+    #goal_setter.add_new_goal(-0.3, -0.2, math.pi/2, 1)
+    goal_setter.add_new_goal(-0.3, 0.2, math.pi/2, 5)
 
     while goal_setter.increment_goal():
             
@@ -508,7 +533,9 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
                 
                 # Map Generation for obstacles
-                map.update(robot.x, robot.y, robot.th, usFront_update, 100, usFront_value.value, 100)
+                map.update(robot.x, robot.y, robot.th, usLeft_update, usFront_update,usRight_update, usLeft_value.value, usFront_value.value, usRight_value.value)
+                # map.update(robot.x+0.055, robot.y, robot.th, usLeft_update, 100, usLeft_value.value, 100)
+                # map.update(robot.x-0.055, robot.y, robot.th, usRight_update, 100, usRight_value.value, 100)
 
                 temp_goal = rrt_plan[rrt_plan_index]
                 if map.is_collision_free(robot.x, robot.y):
@@ -576,7 +603,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 goal_data[:] = []
                 goal_data.extend(goal_setter.get_current_goal())
                 
-                print("loop 1")
+                #print("loop 1")
                 
 
                 
@@ -610,19 +637,24 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 
                 time.sleep(0.1)
 
-def distance(trig, echo):
+def distance(trig, echo, pin = 1):
         # set Trigger to HIGH
         
         GPIO.output(trig, True)
 
             # set Trigger after 0.01ms to LOW
-        time.sleep(0.00001)
+        if (pin == 1):
+            time.sleep(0.00001)
+        elif (pin == 2):
+            time.sleep(0.000005)
+        else:
+            time.sleep(0.000006)
         GPIO.output(trig, False)
 
         StartTime = time.time()
         StopTime = time.time()
         timeout = time.time()
-        timeout_threshold = 0.05
+        timeout_threshold = 0.01
 
             # save StartTime
         while GPIO.input(echo) == 0 and (time.time()- timeout) < timeout_threshold:
@@ -642,35 +674,50 @@ def distance(trig, echo):
 
         return dist
 
-def multi_dist (num_samp = 5):
+def multi_dist (num_samp = 3, trig = GPIO_TRIGGER3, echo = GPIO_ECHO3, pin =  1):
     dist_vec = []
     print_vec = []
 
-    i = 0
     for i in range(5):
         for i in range (num_samp):
-            dist = distance(GPIO_TRIGGER3, GPIO_ECHO3)
-            if (dist >= 3 and dist <=40):
+            dist = distance(trig , echo, pin)
+            if (dist >= 5 and dist <=50):
                 dist_vec.append(dist)
-                i+=1
+            else:
+                dist_vec.append(200)
         mean_dist = np.mean(dist_vec)
         print_vec.append(mean_dist)
     result = np.median(print_vec)
     return result
 
-def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update):
+def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usLeft_update, usFront_update, usRight_update):
     while True:
-        value = multi_dist() / 100 
-        # print(value)
-        if (value > 0.03 and value < 0.40):
-            usFront_value.value = value + 0.12
-            usFront_update.value = 1
-        else:
-            usFront_value.value = 2
-            usFront_update.value = 1
+        value = []
+        value.append(multi_dist(3, GPIO_TRIGGER2, GPIO_ECHO2,  1) / 100) 
+        value.append(multi_dist(3, GPIO_TRIGGER3, GPIO_ECHO3,  2) / 100)
+        value.append(multi_dist(3, GPIO_TRIGGER1, GPIO_ECHO1,  3) / 100)
+        print("Left:" + str(value[2])+ " Middle:" + str(value[1]) + "Right" + str(value[0]))
+ 
+            # print(value)
+        #if (value[1] > 0.05 and value[1] < 0.50):
+        usLeft_value.value = value[2] + 0.11
+        usFront_value.value = value[1] + 0.12
+        usRight_value.value = value[0] + 0.12
+        usLeft_update.value = 1
+        usFront_update.value = 1
+        usRight_update.value = 1
+        print("accepted")
+        #else:
+         #   usFront_value.value = 2
+          #  usLeft_value.value = 2
+           # usRight_value.value = 2
+           # usLeft_update.value = 1
+           # usFront_update.value = 1
+           # usRight_update.value = 1
+           # print("rejected")
     
         # print(usFront_value.value)
-        time.sleep(0.05)
+        time.sleep(0.01)
     #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
     #   usRight_value.value = distance(GPIO_TRIGGER2, GPIO_ECHO2)
 
@@ -800,16 +847,18 @@ if __name__ == '__main__':
     wr_goal_value = Value('f',0)
     current_wl = Value('f',0)
     current_wr = Value('f',0)
-    usLeft_value = Value('f', 0)
+    usLeft_value = Value('f', 100)
+    usLeft_update = Value('f', 0)
     usFront_value = Value('f', 100)
     usFront_update = Value('f', 0)
-    usRight_value = Value('f', 0)
+    usRight_value = Value('f', 100)
+    usRight_update = Value('f', 0)
     
     proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update))
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value,current_wl, current_wr))
-        procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usFront_update))
+        procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usLeft_update, usFront_update, usRight_update))
     if plotting:
         proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
 

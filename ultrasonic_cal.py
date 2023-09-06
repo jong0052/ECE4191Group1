@@ -2,8 +2,8 @@ import numpy as np
 import RPi.GPIO as GPIO
 import time
 GPIO.setmode(GPIO.BCM)
-GPIO_TRIGGER3 = 5
-GPIO_ECHO3 = 6
+GPIO_TRIGGER3 = 17
+GPIO_ECHO3 = 27
 
 GPIO.setup(GPIO_TRIGGER3, GPIO.OUT)
 GPIO.setup(GPIO_ECHO3, GPIO.IN)
