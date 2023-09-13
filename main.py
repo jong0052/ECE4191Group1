@@ -23,6 +23,9 @@ class TestProxy(NamespaceProxy):
         return callmethod('b')
 
 def main():
+    # This is pretty epic workaround but it doesn't work with Objects in an Object. So for now,
+    # supported is primitives and things supported by Managers.
+    # Add Variables in utils/mpManager.py!
     BaseManager.register('MPManager', MPManager, TestProxy)
     manager = BaseManager()
     manager.start()
