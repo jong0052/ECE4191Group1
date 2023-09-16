@@ -4,7 +4,7 @@ from IPython import display
 from main import simulation, plotting
 from utils.mpManager import MPManager
 
-from utils.AStar import AStar
+from utils.RRTC import RRTC
 from utils.Obstacle import *
 from matplotlib.patches import Circle as C
 from matplotlib.patches import Rectangle as R
@@ -14,9 +14,8 @@ import time
 from multiprocessing import Value
 from multiprocessing.managers import ListProxy
 
-# obstacles = [Rectangle((-0.15,0.0),0.3,0.4)]
-obstacles = [Circle(0,0.2,0.15)]
-# obstacles = []
+# obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
+obstacles = []
 
 class DiffDriveRobot:
 
@@ -139,7 +138,7 @@ class TentaclePlanner:
             self.tentacles = []
             for v in range(0,11, 1):
                for w in range(-10,11, 1):
-                   self.tentacles.append((v/200, w/10))
+                   self.tentacles.append((v/100, w/10))
             # print(self.tentacles)
   
         self.alpha = alpha
@@ -291,34 +290,21 @@ class Map:
 
         if (self.initialize):
             self.obstacle_dots = np.array([[2,2]])
-            # for i in range(-6, 7, 1):
-            #     i = i / 10
-            #     # Arena
-            #     self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[-0.6, i]])), axis=0)
-            #     self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.6, i]])), axis=0)
-            #     self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, -0.6]])), axis=0)
-            #     self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, 0.6]])), axis=0)
-            #     # print("test")
+            for i in range(-6, 7, 1):
+                i = i / 10
+                # Arena
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[-0.6, i]])), axis=0)
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.6, i]])), axis=0)
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, -0.6]])), axis=0)
+                self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[i, 0.6]])), axis=0)
+                # print("test")
             
-            # for i in range(0, 7, 1):
-            #     i = i / 10
-            #     # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[-0.05, i]])), axis=0)
-            #     # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0, i]])), axis=0)
-            #     # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.05, i]])), axis=0)
-            
-            for i in range(-55, 56, 1):
-                x = i / 100 * self.width
-                for j in range(-55, 56, 1):
-                    y = j / 100 * self.height
-
-                    if (not self.is_collision_free(x, y)
-                        or np.abs(x) > self.width / 2
-                        or np.abs(y) > self.height / 2):
-                        # print(min_dist)
-                        # print(curr_x)
-                        # print(curr_y)
-                        # print(distance)
-                        self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[x, y]])), axis=0)
+            for i in range(0, 7, 1):
+                i = i / 10
+                # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[-0.05, i]])), axis=0)
+                # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0, i]])), axis=0)
+                # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.05, i]])), axis=0)
+                
             
             self.initialize = False
             #print(f"Obstacles: {self.obstacle_dots}")
@@ -333,7 +319,7 @@ class Map:
             dy = dot[1] - point[0][1]
             h = math.sqrt(dx ** 2 + dy ** 2)
 
-            if h < self.obstacle_closest_threshold:
+            if h < self.obstacle_closest_threshold or obs_y < -0.1 or obs_x > 0.125 or obs_x < -0.125:
                return
             
 
@@ -429,17 +415,17 @@ class GoalSetter():
 
 def navigation_loop(manager_mp: MPManager):
 
-    # obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=0.325,y=0.2,th=0)
-    controller = RobotController(Kp=1.0,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
+    #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
+    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
+    controller = RobotController(Kp=0.20,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
     
     # goal_setter.add_new_goal(0.3,0.0, math.pi)
-    # goal_setter.add_new_goal(0, -0.3, math.pi/2, 1)
-    # goal_setter.add_new_goal(0.325, -0.3, math.pi/2, 1)
-    goal_setter.add_new_goal(0.325, 0.2, math.pi, 5)
+    goal_setter.add_new_goal(0, -0.3, math.pi/2, 1)
+    goal_setter.add_new_goal(0.325, -0.3, math.pi/2, 1)
+    goal_setter.add_new_goal(0.325, 0.2, math.pi, 10)
     # goal_setter.add_new_goal(0.325, 0.2, math.pi, 10)
     #goal_setter.add_new_goal(0.3, 0.2, -math.pi/2, 1)
     #goal_setter.add_new_goal(0.3, -0.2, math.pi, 1)
@@ -452,11 +438,11 @@ def navigation_loop(manager_mp: MPManager):
             print(f"New Goal: {final_goal}")
             start = np.array([robot.x, robot.y, robot.th])
             expand_dis = 0.05
-            path_resolution = 0.05
-            algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, node_distance=path_resolution)
-            plan = algorithm.plan()
-            print(plan)
-            plan_index = 0
+            path_resolution = 0.01
+            rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution, max_points=200)
+            rrt_plan = rrtc.planning()
+            print(rrt_plan)
+            rrt_plan_index = 0
 
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
                 
@@ -465,7 +451,7 @@ def navigation_loop(manager_mp: MPManager):
                 # map.update(robot.x+0.055, robot.y, robot.th, usLeft_update, 100, usLeft_value.value, 100)
                 # map.update(robot.x-0.055, robot.y, robot.th, usRight_update, 100, usRight_value.value, 100)
 
-                temp_goal = plan[plan_index]
+                temp_goal = rrt_plan[rrt_plan_index]
                 if map.is_collision_free(robot.x, robot.y):
                     # print(map.obstacle_dots)
 
@@ -492,8 +478,8 @@ def navigation_loop(manager_mp: MPManager):
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = ((manager_mp.current_wl/ 60)* 2*math.pi)
-                    wr = ((manager_mp.current_wr/ 60)* 2*math.pi)
+                    wl = ((manager_mp.current_wl.value/ 60)* 2*math.pi)
+                    wr = ((manager_mp.current_wr.value/ 60)* 2*math.pi)
                     #* 60 /( 2*math.pi)
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
@@ -501,21 +487,21 @@ def navigation_loop(manager_mp: MPManager):
 
                 # Have we reached temp_goal?
                 if (cost < 1e-2):
-                    if (plan_index < len(plan) - 1):
-                        plan_index += 1
+                    if (rrt_plan_index < len(rrt_plan) - 1):
+                        rrt_plan_index += 1
 
-                algorithm.obstacle_list = map.get_obstacle_list()
+                rrtc.obstacle_list = map.get_obstacle_list()
 
-                if (not algorithm.is_collision_free_path(plan)):
+                if (not rrtc.is_collision_free_path(rrt_plan)):
                     start = np.array([robot.x, robot.y, robot.th])
 
                     # print("why are u runnin")
-                    algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, node_distance=path_resolution)
-                    new_plan = algorithm.plan()
+                    rrtc = RRTC(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, expand_dis=expand_dis, path_resolution=path_resolution)
+                    new_rrt_plan = rrtc.planning()
 
-                    if (len(new_plan) > 0):
-                        plan = new_plan
-                        plan_index = 0
+                    if (len(new_rrt_plan) > 0):
+                        rrt_plan = new_rrt_plan
+                        rrt_plan_index = 0
 
                 # Log data
                 # poses = manager_mp.poses.copy()
@@ -527,8 +513,8 @@ def navigation_loop(manager_mp: MPManager):
                 manager_mp.obstacle_data[:] = []
                 manager_mp.obstacle_data.extend(map.get_obstacle_log())
                 # print(manager_mp.obstacle_data)
-                manager_mp.plan_mp[:] = []
-                manager_mp.plan_mp.extend(plan)
+                manager_mp.rrt_plan_mp[:] = []
+                manager_mp.rrt_plan_mp.extend(rrt_plan)
                 manager_mp.robot_data[:] = []
                 manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
                 manager_mp.goal_data[:] = []
@@ -545,8 +531,6 @@ def navigation_loop(manager_mp: MPManager):
             while (dt <= total_wait):
                 dt = time.time() - start_wait
                 v, w = 0, 0
-
-                map.update(robot.x, robot.y, robot.th, manager_mp.usLeft_update, manager_mp.usFront_update, manager_mp.usRight_update, manager_mp.usLeft_value, manager_mp.usFront_value, manager_mp.usRight_value)
 
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
                 manager_mp.wl_goal_value = wl_goal
@@ -571,7 +555,7 @@ def plotting_loop(manager_mp: MPManager):
     poses_local = []
     obstacle_data_local = []
     robot_data_local = []
-    plan_local = []
+    rrt_plan_local = []
     goal_data_local = []
 
     while True:
@@ -579,7 +563,7 @@ def plotting_loop(manager_mp: MPManager):
 
         poses_local_unstable = manager_mp.poses[:]
         robot_data_local_unstable = manager_mp.robot_data[:]
-        plan_local_unstable = manager_mp.plan_mp[:]
+        rrt_plan_local_unstable = manager_mp.rrt_plan_mp[:]
         obstacle_data_local_unstable = manager_mp.obstacle_data[:]
         goal_data_local_unstable = manager_mp.goal_data[:]
 
@@ -592,13 +576,13 @@ def plotting_loop(manager_mp: MPManager):
         if (len(obstacle_data_local_unstable) > 0):
             obstacle_data_local = obstacle_data_local_unstable
 
-        if (len(plan_local_unstable) >0):
-            plan_local = plan_local_unstable
+        if (len(rrt_plan_local_unstable) >0):
+            rrt_plan_local = rrt_plan_local_unstable
             
         if (len(goal_data_local_unstable) >0):
             goal_data_local = goal_data_local_unstable
 
-        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
+        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(rrt_plan_local) > 0 and len(goal_data_local) > 0)):
             print("Failed to plot, empty data...")
             continue
 
@@ -632,10 +616,10 @@ def plotting_loop(manager_mp: MPManager):
         plan_y_data = []
         plan_th_data = []
 
-        for i in range(len(plan_local)):
-            plan_x_data = np.append(plan_x_data, plan_local[i][0])
-            plan_y_data = np.append(plan_y_data, plan_local[i][1])
-            plan_th_data = np.append(plan_th_data, plan_local[i][2])
+        for i in range(len(rrt_plan_local)):
+            plan_x_data = np.append(plan_x_data, rrt_plan_local[i][0])
+            plan_y_data = np.append(plan_y_data, rrt_plan_local[i][1])
+            plan_th_data = np.append(plan_th_data, rrt_plan_local[i][2])
 
         plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
 

@@ -6,7 +6,7 @@ class MPManager:
 
         self.poses = manager.list() # For Plotting
         self.obstacle_data = manager.list() # Map.obstacle_logs, each point is [x, y] for each obstacle dot
-        self.rrt_plan_mp = manager.list() # rrt_plan, each point is [x, y, th] for waypoints.
+        self.plan_mp = manager.list() # rrt_plan, each point is [x, y, th] for waypoints.
         self.robot_data = manager.list() # Robot position, [x, y, theta]
         self.goal_data = manager.list() # Current GoalSetter data, [x, y, theta]
         self.us_data = manager.list() # Ultrasonic Distance Data. (US_ID, point)

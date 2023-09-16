@@ -1,6 +1,6 @@
 # RRT Algorithm
 
-from utils.Obstacle import *
+from Obstacle import *
 
 import numpy as np
 import random
