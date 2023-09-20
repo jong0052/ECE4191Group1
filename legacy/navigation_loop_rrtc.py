@@ -1,48 +1,21 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from IPython import display
+from main import simulation, plotting
+from utils.mpManager import MPManager
 
-from RRTC import RRTC
-from Obstacle import *
+from utils.RRTC import RRTC
+from utils.Obstacle import *
 from matplotlib.patches import Circle as C
 from matplotlib.patches import Rectangle as R
 import math
-import serial
 import time
 
-import multiprocessing
-from multiprocessing import Process, Value, Manager
+from multiprocessing import Value
+from multiprocessing.managers import ListProxy
 
 # obstacles = [Rectangle((-0.05,0.0),0.1,0.4)]
 obstacles = []
-
-plotting = True
-simulation = False
-
-if not simulation:
-    import RPi.GPIO as GPIO
-
-    #start Luke's code
-    # GPIO Mode (BOARD / BCM)
-    GPIO.setmode(GPIO.BCM)
-
-    # set GPIO Pins
-    GPIO_TRIGGER1 = 23 # Right
-    GPIO_ECHO1 = 24
-    GPIO_TRIGGER2 = 17 # Left
-    GPIO_ECHO2 = 27 # Left
-    GPIO_TRIGGER3 = 5 # Middle
-    GPIO_ECHO3 = 6 # Middle
-    
-    ECHO2_arr = [17, 5, 23]
-    TRIG_arr = [27, 6, 24]
-    # set GPIO direction (IN / OUT)
-    GPIO.setup(GPIO_TRIGGER1, GPIO.OUT)
-    GPIO.setup(GPIO_ECHO1, GPIO.IN)
-    GPIO.setup(GPIO_TRIGGER2, GPIO.OUT)
-    GPIO.setup(GPIO_ECHO2, GPIO.IN)
-    GPIO.setup(GPIO_TRIGGER3, GPIO.OUT)
-    GPIO.setup(GPIO_ECHO3, GPIO.IN)
 
 class DiffDriveRobot:
 
@@ -163,12 +136,9 @@ class TentaclePlanner:
         else:
             #self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
             self.tentacles = []
-            for v in range(0,10, 1):
-               for w in range(-10,10, 1):
+            for v in range(0,11, 1):
+               for w in range(-10,11, 1):
                    self.tentacles.append((v/100, w/10))
-            
-            
-            
             # print(self.tentacles)
   
         self.alpha = alpha
@@ -215,9 +185,6 @@ class TentaclePlanner:
         # print(self.tentacles[best_idx])
 
         return self.tentacles[best_idx], best_costs
-
-# This is NEW! (We coded this)
-
 
 class Map:
     def __init__(self, width = 2, height = 2, true_obstacles = []):
@@ -377,60 +344,6 @@ class Map:
 
         return obstacle_list
 
-class Serializer:
-    def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.1)
-        self.ser.reset_input_buffer()
-        self.data = SerialData()
-
-    def read(self):
-        line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-        # print("serial read: " + str(line))
-        self.decode_string(line)
-    
-    def write(self):
-        self.ser.write(self.encode_string())
-        # print("serial write: " + str(self.encode_string()))
-
-    def decode_string(self,input_string):
-        # Extracting numbers from the input_string using string manipulation
-        # Line Format: "Wheels: [wl, wr]"
-        if not input_string.startswith("Nano"):
-            return
-    
-        try:
-            start_idx = input_string.index("[") + 1
-            end_idx = input_string.index("]")
-            wl_current, wr_current, wl_goal, wr_goal = [float(num) for num in input_string[start_idx:end_idx].split(',')]
-        except ValueError:
-            raise ValueError("Invalid input format")
-
-        # Creating a SerialData object with the extracted numbers
-        self.data.update(wl_current=wl_current, wr_current=wr_current, wl_goal=wl_goal, wr_goal=wr_goal)
-        
-    
-    def encode_string(self):
-        return f"Pi: [{self.data.wl_current},{self.data.wr_current},{self.data.wl_goal},{self.data.wr_goal}]".encode("utf-8")
-
-class SerialData:
-    """
-    Data for Serial Connection between Arduino and PI
-
-    All Velocities in RPM
-    """
-    def __init__(self, wl_current=0, wr_current=0, wl_goal=0, wr_goal=0):
-        self.update(wl_current, wr_current, wl_goal, wr_goal)
-
-    def update(self, wl_current=None, wr_current=None, wl_goal=None, wr_goal=None):
-        if wl_current is not None:
-            self.wl_current = wl_current
-        if wr_current is not None:
-            self.wr_current = wr_current
-        if wl_goal is not None:
-            self.wl_goal = wl_goal
-        if wr_goal is not None:
-            self.wr_goal = wr_goal
-
 class GoalSetter():
     def __init__(self):
         self.goals = []
@@ -500,10 +413,11 @@ class GoalSetter():
         else:
             return False
 
-def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan_mp, robot_data, goal_data,current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update):
+def navigation_loop(manager_mp: MPManager):
+
     #obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
     robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=-0.3,y=-0.4,th=0)
-    controller = RobotController(Kp=2.0,Ki=0.15,wheel_radius=0.0258, wheel_sep=0.22)
+    controller = RobotController(Kp=0.20,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
@@ -533,7 +447,7 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
                 
                 # Map Generation for obstacles
-                map.update(robot.x, robot.y, robot.th, usLeft_update, usFront_update,usRight_update, usLeft_value.value, usFront_value.value, usRight_value.value)
+                map.update(robot.x, robot.y, robot.th, manager_mp.usLeft_update, manager_mp.usFront_update, manager_mp.usRight_update, manager_mp.usLeft_value, manager_mp.usFront_value, manager_mp.usRight_value)
                 # map.update(robot.x+0.055, robot.y, robot.th, usLeft_update, 100, usLeft_value.value, 100)
                 # map.update(robot.x-0.055, robot.y, robot.th, usRight_update, 100, usRight_value.value, 100)
 
@@ -559,13 +473,13 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 # print(f"v: {v} w: {w}")
 
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
-                wl_goal_value.value = wl_goal
-                wr_goal_value.value = wr_goal
+                manager_mp.wl_goal_value = wl_goal
+                manager_mp.wr_goal_value = wr_goal
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = ((current_wl.value/ 60)* 2*math.pi)
-                    wr = ((current_wr.value/ 60)* 2*math.pi)
+                    wl = ((manager_mp.current_wl.value/ 60)* 2*math.pi)
+                    wr = ((manager_mp.current_wr.value/ 60)* 2*math.pi)
                     #* 60 /( 2*math.pi)
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
@@ -590,23 +504,23 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                         rrt_plan_index = 0
 
                 # Log data
-                poses.append([x,y,th])
-                duty_cycle_commands.append([duty_cycle_l,duty_cycle_r])
-                velocities.append([robot.wl,robot.wr])
-                costs_vec.append(cost)
-                obstacle_data[:] = []
-                obstacle_data.extend(map.get_obstacle_log())
-                rrt_plan_mp[:] = []
-                rrt_plan_mp.extend(rrt_plan)
-                robot_data[:] = []
-                robot_data.extend([robot.x, robot.y, robot.th])
-                goal_data[:] = []
-                goal_data.extend(goal_setter.get_current_goal())
+                # poses = manager_mp.poses.copy()
+                # poses.append([x,y,th])
+                # manager_mp.poses = poses
+                # print(manager_mp.poses)
+                manager_mp.poses.append([x,y,th])
+                # print(manager_mp.poses)
+                manager_mp.obstacle_data[:] = []
+                manager_mp.obstacle_data.extend(map.get_obstacle_log())
+                # print(manager_mp.obstacle_data)
+                manager_mp.rrt_plan_mp[:] = []
+                manager_mp.rrt_plan_mp.extend(rrt_plan)
+                manager_mp.robot_data[:] = []
+                manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
+                manager_mp.goal_data[:] = []
+                manager_mp.goal_data.extend(goal_setter.get_current_goal())
                 
-                #print("loop 1")
-                
-
-                
+                print("loop 1")
 
             # Hardcode wait for Milestone 1
             print(f"Reached Goal {goal_setter.current_id}, I am going to wait for {goal_setter.get_current_wait()} seconds.")
@@ -619,130 +533,25 @@ def navigation_loop(wl_goal_value, wr_goal_value, poses, velocities, duty_cycle_
                 v, w = 0, 0
 
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
-                wl_goal_value.value = wl_goal
-                wr_goal_value.value = wr_goal
+                manager_mp.wl_goal_value = wl_goal
+                manager_mp.wr_goal_value = wr_goal
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
-                    wl = (current_wl.value / 60) * 2*math.pi
-                    wr = (current_wr.value / 60) * 2 * math.pi
+                    wl = (manager_mp.current_wl / 60) * 2*math.pi
+                    wr = (manager_mp.current_wr / 60) * 2 * math.pi
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
 
                 # Log data
-                poses.append([x,y,th])
-                robot_data[:] = []
-                robot_data.extend([robot.x, robot.y, robot.th])
+                manager_mp.poses.append([x,y,th])
+                manager_mp.robot_data[:] = []
+                manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
                 
                 time.sleep(0.1)
 
-def distance(trig, echo, pin = 1):
-        # set Trigger to HIGH
-        
-        GPIO.output(trig, True)
-
-            # set Trigger after 0.01ms to LOW
-        if (pin == 1):
-            time.sleep(0.00001)
-        elif (pin == 2):
-            time.sleep(0.000005)
-        else:
-            time.sleep(0.000006)
-        GPIO.output(trig, False)
-
-        StartTime = time.time()
-        StopTime = time.time()
-        timeout = time.time()
-        timeout_threshold = 0.01
-
-            # save StartTime
-        while GPIO.input(echo) == 0 and (time.time()- timeout) < timeout_threshold:
-            StartTime = time.time()
-                # print("start")
-
-            # save time of arrival
-        while GPIO.input(echo) == 1 and (time.time() - timeout) < timeout_threshold:
-            StopTime = time.time()
-                # print("stop")
-
-            # time difference between start and arrival
-        TimeElapsed = StopTime - StartTime
-            # multiply with the sonic speed (34300 cm/s)
-            # and divide by 2, because there and back
-        dist = (TimeElapsed * 34300) / 2
-
-        return dist
-
-def multi_dist (num_samp = 3, trig = GPIO_TRIGGER3, echo = GPIO_ECHO3, pin =  1):
-    dist_vec = []
-    print_vec = []
-
-    for i in range(5):
-        for i in range (num_samp):
-            dist = distance(trig , echo, pin)
-            if (dist >= 5 and dist <=50):
-                dist_vec.append(dist)
-            else:
-                dist_vec.append(200)
-        mean_dist = np.mean(dist_vec)
-        print_vec.append(mean_dist)
-    result = np.median(print_vec)
-    return result
-
-def usLoop(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usLeft_update, usFront_update, usRight_update):
-    while True:
-        value = []
-        value.append(multi_dist(3, GPIO_TRIGGER2, GPIO_ECHO2,  1) / 100) 
-        value.append(multi_dist(3, GPIO_TRIGGER3, GPIO_ECHO3,  2) / 100)
-        value.append(multi_dist(3, GPIO_TRIGGER1, GPIO_ECHO1,  3) / 100)
-        print("Left:" + str(value[2])+ " Middle:" + str(value[1]) + "Right" + str(value[0]))
- 
-            # print(value)
-        #if (value[1] > 0.05 and value[1] < 0.50):
-        usLeft_value.value = value[2] + 0.11
-        usFront_value.value = value[1] + 0.12
-        usRight_value.value = value[0] + 0.12
-        usLeft_update.value = 1
-        usFront_update.value = 1
-        usRight_update.value = 1
-        print("accepted")
-        #else:
-         #   usFront_value.value = 2
-          #  usLeft_value.value = 2
-           # usRight_value.value = 2
-           # usLeft_update.value = 1
-           # usFront_update.value = 1
-           # usRight_update.value = 1
-           # print("rejected")
-    
-        # print(usFront_value.value)
-        time.sleep(0.01)
-    #   usLeft_value.value = distance(GPIO_TRIGGER1, GPIO_ECHO1)
-    #   usRight_value.value = distance(GPIO_TRIGGER2, GPIO_ECHO2)
-
-def serializer_loop(wl_goal_value, wr_goal_value, current_wl, current_wr):
-    serializer = Serializer()
-    while True:
-        
-        # Read Data
-        # serializer.read()
-        wl_goal_rpm = wl_goal_value.value * 60 / (2 * math.pi)
-        wr_goal_rpm = wr_goal_value.value * 60 / (2 * math.pi)
-        # print(wl_goal_rpm)
-        # print(wr_goal_rpm)
-        serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
-        serializer.write()
-        time.sleep(0.01)
-        serializer.read()
-
-        # print("loop 2")
-        current_wl.value = serializer.data.wl_current
-        current_wr.value = serializer.data.wr_current
-        
-        #print("loop 2")
-
-def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
+def plotting_loop(manager_mp: MPManager):
     poses_local = []
     obstacle_data_local = []
     robot_data_local = []
@@ -750,13 +559,13 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
     goal_data_local = []
 
     while True:
-        time.sleep(0.5)
+        time.sleep(1)
 
-        poses_local_unstable = poses[:]
-        robot_data_local_unstable = robot_data[:]
-        rrt_plan_local_unstable = rrt_plan[:]
-        obstacle_data_local_unstable = obstacle_data[:]
-        goal_data_local_unstable = goal_data[:]
+        poses_local_unstable = manager_mp.poses[:]
+        robot_data_local_unstable = manager_mp.robot_data[:]
+        rrt_plan_local_unstable = manager_mp.rrt_plan_mp[:]
+        obstacle_data_local_unstable = manager_mp.obstacle_data[:]
+        goal_data_local_unstable = manager_mp.goal_data[:]
 
         if (len(poses_local_unstable) > 0):
             poses_local= poses_local_unstable
@@ -773,7 +582,7 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
         if (len(goal_data_local_unstable) >0):
             goal_data_local = goal_data_local_unstable
 
-        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(rrt_plan_local) > 0) and len(goal_data_local) > 0):
+        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(rrt_plan_local) > 0 and len(goal_data_local) > 0)):
             print("Failed to plot, empty data...")
             continue
 
@@ -827,54 +636,4 @@ def plotting_loop(poses, obstacle_data, rrt_plan, robot_data, goal_data):
         display.clear_output(wait=True)
         display.display(plt.gcf())
         
-        # print("loop 3")
-        
-
-if __name__ == '__main__':
-    manager = Manager()
-
-    poses = manager.list()
-    velocities = manager.list()
-    duty_cycle_commands = manager.list()
-    costs_vec = manager.list()
-    obstacle_data = manager.list()
-    rrt_plan = manager.list()
-    robot_data = manager.list()
-    goal_data = manager.list()
-
-    # Multiprocessing
-    wl_goal_value = Value('f',0)
-    wr_goal_value = Value('f',0)
-    current_wl = Value('f',0)
-    current_wr = Value('f',0)
-    usLeft_value = Value('f', 100)
-    usLeft_update = Value('f', 0)
-    usFront_value = Value('f', 100)
-    usFront_update = Value('f', 0)
-    usRight_value = Value('f', 100)
-    usRight_update = Value('f', 0)
-    
-    proc1 = Process(target=navigation_loop,args=(wl_goal_value,wr_goal_value, poses, velocities, duty_cycle_commands, costs_vec, obstacle_data, rrt_plan, robot_data, goal_data, current_wl, current_wr, usLeft_value, usFront_value, usRight_value, usFront_update))
-
-    if not simulation:
-        proc2 = Process(target=serializer_loop, args=(wl_goal_value,wr_goal_value,current_wl, current_wr))
-        procUS = Process(target=usLoop, args=(GPIO_TRIGGER1, GPIO_ECHO1, GPIO_TRIGGER2, GPIO_ECHO2, GPIO_TRIGGER3, GPIO_ECHO3, usLeft_value, usFront_value, usRight_value, usLeft_update, usFront_update, usRight_update))
-    if plotting:
-        proc3 = Process(target=plotting_loop, args=(poses, obstacle_data, rrt_plan, robot_data, goal_data))
-
-    proc1.start()
-    if not simulation:
-        proc2.start()
-        procUS.start()
-    if plotting:
-        proc3.start()
-
-    proc1.join()
-    if not simulation:
-        proc2.join()
-        procUS.join()
-    if plotting:
-        proc3.join()
-    
-
-     
+        print("loop 3")
