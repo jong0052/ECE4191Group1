@@ -16,7 +16,7 @@ objp[:,:2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1,2)
 # Arrays to store object points and image points from all the images.
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
-images = glob.glob('*.jpeg')
+images = glob.glob('*.jpg')
 
 #run rach picture and find corners, and if existing, append the corner to both arrays
 for image in images:
@@ -62,7 +62,6 @@ dst = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
 x,y,w,h = roi
 dst = dst[y:y+h,x:x+w]
 cv2.imwrite("undistored_mapped.jpeg",dst)
-
 #reprojection error
 mean_error=0
 
