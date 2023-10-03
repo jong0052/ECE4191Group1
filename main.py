@@ -5,9 +5,8 @@ from multiprocessing.managers import BaseManager, NamespaceProxy
 from utils.mpManager import MPManager
 
 from navigation_loop import *
-
-plotting = True
-simulation = True
+from plotting_loop import *
+from utils.const import *
 
 if (not simulation):
     from ultrasonic_loop import *

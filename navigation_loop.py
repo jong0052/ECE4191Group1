@@ -10,13 +10,10 @@ from matplotlib.patches import Circle as C
 from matplotlib.patches import Rectangle as R
 import math
 import time
+from utils.const import *
 
 from multiprocessing import Value
 from multiprocessing.managers import ListProxy
-
-# obstacles = [Rectangle((-0.15,0.0),0.3,0.4)]
-obstacles = [Circle(0,0.2,0.15)]
-# obstacles = []
 
 class DiffDriveRobot:
 
@@ -68,6 +65,7 @@ class DiffDriveRobot:
     def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
         # print(self.last)
         dt = time.time() - self.last[-1]
+        print(dt)
 
         # print(duty_cycle_l)
         # print(duty_cycle_r)
@@ -269,20 +267,6 @@ class Map:
         return True  # safe
 
     def generate_obstacle(self, robot_x, robot_y, robot_th, distance, us_x=0, us_y=0, us_th=0):
-        # def calc(rx, ry, theta, d, wx, wy,th):
-        #     mat1 = np.array([[math.cos(theta), -1*math.sin(theta)],[math.sin(theta), math.cos(theta)]])
-        #     mat2 = np.array([[math.cos(th), -1*math.sin(th)],[math.sin(th), math.cos(th)]])
-        #     d_m = np.array([[d],
-        #     [0]])
-        #     r_m = np.array([[rx],
-        #     [ry]])
-        #     w_m = np.array([[wx],
-        #     [wy]])
-        #     return mat1@(mat2@d_m + r_m)+w_m
-
-        # obs = calc(robot_x, robot_y, robot_th, distance, us_x, us_y, us_th)
-        # print(obs)
-
         # Append to Obstacle_dots
         obs_x = robot_x + distance * np.cos(robot_th) + us_x * np.cos(robot_th - math.pi/ 2)
         obs_y = robot_y + distance * np.sin(robot_th) + us_x * np.sin(robot_th - math.pi/2)
@@ -314,21 +298,12 @@ class Map:
                     if (not self.is_collision_free(x, y)
                         or np.abs(x) > self.width / 2
                         or np.abs(y) > self.height / 2):
-                        # print(min_dist)
-                        # print(curr_x)
-                        # print(curr_y)
-                        # print(distance)
                         self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[x, y]])), axis=0)
             
             self.initialize = False
-            #print(f"Obstacles: {self.obstacle_dots}")
-        
-        # print(self.obstacle_dots)
-        # print(point)
-        # If obstacle is within 0.01 of another point, don't add it to avoid clutter.
+
+        # If obstacle is within 0.01 of another point, don't add it to avoid clutter
         for dot in self.obstacle_dots:
-            # print(dot)
-            # print(point)
             dx = dot[0] - point[0][0]
             dy = dot[1] - point[0][1]
             h = math.sqrt(dx ** 2 + dy ** 2)
@@ -369,12 +344,6 @@ class GoalSetter():
         self.alpha = 3 # x y factor
         self.beta = 0.1 # th factor
 
-        # Goal time
-        # self.threshold_time = 5
-        # self.last = time.time()
-        # self.accumulative_time = 0
-        
-
     def get_current_goal(self):
         if (self.current_id < len(self.goals)):
             return self.goals[self.current_id]
@@ -404,19 +373,8 @@ class GoalSetter():
 
         if cost < self.threshold:
             return True
-            # dt = time.time() - self.last
-            # self.accumulative_time += dt
-            # self.last = time.time()
-
-            # if (self.accumulative_time > self.threshold_time):
-            #     self.accumulative_time = 0
-            #     return True
-            # else:
-            #     return False
         else:
             return False
-            # self.accumulative_time = 0
-            # self.last = time.time()
 
     # Increment Goal. If there's another goal, return True. If ran out of goals, return False.
     def increment_goal(self):
@@ -429,21 +387,13 @@ class GoalSetter():
 
 def navigation_loop(manager_mp: MPManager):
 
-    # obstacles = [Circle(0.5,0.5,0.05),Circle(-0.5, -0.5, 0.05), Circle(-0.5, 0.5, 0.05), Circle(0.5, -0.5, 0.05)]
     robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=0.325,y=0.2,th=0)
     controller = RobotController(Kp=1.0,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
     tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
     
-    # goal_setter.add_new_goal(0.3,0.0, math.pi)
-    # goal_setter.add_new_goal(0, -0.3, math.pi/2, 1)
-    # goal_setter.add_new_goal(0.325, -0.3, math.pi/2, 1)
     goal_setter.add_new_goal(0.325, 0.2, math.pi, 5)
-    # goal_setter.add_new_goal(0.325, 0.2, math.pi, 10)
-    #goal_setter.add_new_goal(0.3, 0.2, -math.pi/2, 1)
-    #goal_setter.add_new_goal(0.3, -0.2, math.pi, 1)
-    #goal_setter.add_new_goal(-0.3, -0.2, math.pi/2, 1)
     goal_setter.add_new_goal(-0.3, 0.2, math.pi/2, 5)
 
     while goal_setter.increment_goal():
@@ -462,9 +412,7 @@ def navigation_loop(manager_mp: MPManager):
                 
                 # Map Generation for obstacles
                 map.update(robot.x, robot.y, robot.th, manager_mp.usLeft_update, manager_mp.usFront_update, manager_mp.usRight_update, manager_mp.usLeft_value, manager_mp.usFront_value, manager_mp.usRight_value)
-                # map.update(robot.x+0.055, robot.y, robot.th, usLeft_update, 100, usLeft_value.value, 100)
-                # map.update(robot.x-0.055, robot.y, robot.th, usRight_update, 100, usRight_value.value, 100)
-
+                
                 temp_goal = plan[plan_index]
                 if map.is_collision_free(robot.x, robot.y):
                     # print(map.obstacle_dots)
@@ -475,26 +423,16 @@ def navigation_loop(manager_mp: MPManager):
                 else:
                     v, w = -0.1, 0
                     cost = np.inf
-                    # if math.pi / 4 < robot.th < 3 * math.pi / 4:
-                    #     GoalSetter.add_emergency_goal(goal_setter, robot.x, robot.y - 0.3)
-                    # elif 3 * math.pi / 4 < robot.th < 5 * math.pi / 4:
-                    #     GoalSetter.add_emergency_goal(goal_setter, robot.x + 0.3, robot.y)
-                    # elif 5 * math.pi / 4 < robot.th < 7 * math.pi / 4:
-                    #     GoalSetter.add_emergency_goal(goal_setter, robot.x, robot.y + 0.3)
-                    # else:
-                    #     GoalSetter.add_emergency_goal(goal_setter, robot.x - 0.3, robot.y)
-
-                # print(f"v: {v} w: {w}")
 
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
                 manager_mp.wl_goal_value = wl_goal
                 manager_mp.wr_goal_value = wr_goal
+                print(f"{wl_goal}, {wr_goal}")
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
                     wl = ((manager_mp.current_wl/ 60)* 2*math.pi)
                     wr = ((manager_mp.current_wr/ 60)* 2*math.pi)
-                    #* 60 /( 2*math.pi)
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
                 else:
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
@@ -518,15 +456,9 @@ def navigation_loop(manager_mp: MPManager):
                         plan_index = 0
 
                 # Log data
-                # poses = manager_mp.poses.copy()
-                # poses.append([x,y,th])
-                # manager_mp.poses = poses
-                # print(manager_mp.poses)
                 manager_mp.poses.append([x,y,th])
-                # print(manager_mp.poses)
                 manager_mp.obstacle_data[:] = []
                 manager_mp.obstacle_data.extend(map.get_obstacle_log())
-                # print(manager_mp.obstacle_data)
                 manager_mp.plan_mp[:] = []
                 manager_mp.plan_mp.extend(plan)
                 manager_mp.robot_data[:] = []
@@ -551,6 +483,7 @@ def navigation_loop(manager_mp: MPManager):
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
                 manager_mp.wl_goal_value = wl_goal
                 manager_mp.wr_goal_value = wr_goal
+                print(f"{wl_goal}, {wr_goal}")
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
@@ -566,90 +499,3 @@ def navigation_loop(manager_mp: MPManager):
                 manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
                 
                 time.sleep(0.1)
-
-def plotting_loop(manager_mp: MPManager):
-    poses_local = []
-    obstacle_data_local = []
-    robot_data_local = []
-    plan_local = []
-    goal_data_local = []
-
-    while True:
-        time.sleep(1)
-
-        poses_local_unstable = manager_mp.poses[:]
-        robot_data_local_unstable = manager_mp.robot_data[:]
-        plan_local_unstable = manager_mp.plan_mp[:]
-        obstacle_data_local_unstable = manager_mp.obstacle_data[:]
-        goal_data_local_unstable = manager_mp.goal_data[:]
-
-        if (len(poses_local_unstable) > 0):
-            poses_local= poses_local_unstable
-
-        if (len(robot_data_local_unstable) > 0):
-            robot_data_local = robot_data_local_unstable
-
-        if (len(obstacle_data_local_unstable) > 0):
-            obstacle_data_local = obstacle_data_local_unstable
-
-        if (len(plan_local_unstable) >0):
-            plan_local = plan_local_unstable
-            
-        if (len(goal_data_local_unstable) >0):
-            goal_data_local = goal_data_local_unstable
-
-        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
-            print("Failed to plot, empty data...")
-            continue
-
-        # Plot robot data
-        plt.clf()
-        ax = plt.gca()
-        for obstacle in obstacles:
-            if isinstance(obstacle,Circle):
-                patch = C((obstacle.center[0], obstacle.center[1]), obstacle.radius, fill=False, edgecolor='blue')
-            elif isinstance(obstacle,Rectangle):
-                patch = R((obstacle.origin[0],obstacle.origin[1]),obstacle.width,obstacle.height,fill=True,edgecolor='pink')
-            ax.add_patch(patch)
-
-        #plt.subplot(1,3,1)
-        # print(poses_local)
-        plt.plot(np.array(poses_local)[:,0],np.array(poses_local)[:,1])
-        plt.plot(robot_data_local[0], robot_data_local[1],'k',marker='+')
-        plt.quiver(robot_data_local[0],robot_data_local[1],0.1*np.cos(robot_data_local[2]),0.1*np.sin(robot_data_local[2]))
-        plt.plot(goal_data_local[0],goal_data_local[1],'x',markersize=5)
-        plt.quiver(goal_data_local[0],goal_data_local[1],0.1*np.cos(goal_data_local[2]),0.1*np.sin(goal_data_local[2]))
-
-        np_obstacle_data = np.array(obstacle_data_local)
-        plt.plot(np_obstacle_data[:,0],np_obstacle_data[:,1],'ko',markersize=5)
-        plt.xlim(-1,1)
-        plt.ylim(-1,1)
-        plt.xlabel('x-position (m)')
-        plt.ylabel('y-position (m)')
-        plt.grid()
-
-        plan_x_data = []
-        plan_y_data = []
-        plan_th_data = []
-
-        for i in range(len(plan_local)):
-            plan_x_data = np.append(plan_x_data, plan_local[i][0])
-            plan_y_data = np.append(plan_y_data, plan_local[i][1])
-            plan_th_data = np.append(plan_th_data, plan_local[i][2])
-
-        plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
-
-        #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
-        plt.xlim(-1,1)
-        plt.ylim(-1,1)
-        plt.xlabel('x-position (m)')
-        plt.ylabel('y-position (m)')
-        plt.grid()
-
-        plt.pause(0.05)
-        plt.show(block=False)
-
-        display.clear_output(wait=True)
-        display.display(plt.gcf())
-        
-        print("loop 3")
