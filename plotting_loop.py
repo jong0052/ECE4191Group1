@@ -121,6 +121,11 @@ def plotting_loop(manager_mp: MPManager):
         plt.ylabel('y-position (m)')
         plt.grid()
 
+        for obstacle_coords in np_obstacle_data:
+            patch = C((obstacle_coords[0],obstacle_coords[1]), OBSTACLE_SIZE, fill=False, edgecolor='blue')
+            ax.add_patch(patch)
+        
+
         plan_x_data = []
         plan_y_data = []
         plan_th_data = []

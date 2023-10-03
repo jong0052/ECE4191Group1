@@ -1,5 +1,7 @@
 # AStar Algorithm
 
+# Bulk of Code originates from PythonRobotics.
+
 from utils.Obstacle import *
 
 import numpy as np
@@ -159,11 +161,13 @@ class AStar():
         
         return True  # safe
     
-    def is_collision_free_path(self, path):
+    def is_collision_free_path(self, path, path_index = 0, search_length = 999):
         """
-        Determine if nearby_node (new_node) is in the collision-free space.
+        Determine if path is in the collision-free space.
         """
-        for point in path:
+        id = 0
+        for i in range(path_index, min(len(path), path_index + search_length)):
+            point = path[i]
             points = np.vstack((point[0], point[1])).T
             for obs in self.obstacle_list:
                 in_collision = obs.is_in_collision_with_points(points)

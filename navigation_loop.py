@@ -65,7 +65,7 @@ class DiffDriveRobot:
     def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
         # print(self.last)
         dt = time.time() - self.last[-1]
-        print(dt)
+        print(f"dt: {dt}")
 
         # print(duty_cycle_l)
         # print(duty_cycle_r)
@@ -192,7 +192,7 @@ class Map:
         self.height = height
         self.obstacle_dots = np.array([[100, 100]])
         self.true_obstacles = true_obstacles
-        self.obstacle_size = 0.15
+        self.obstacle_size = OBSTACLE_SIZE
         self.obstacle_closest_threshold = 0.05
 
         self.initialize = True
@@ -290,9 +290,9 @@ class Map:
             #     # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0, i]])), axis=0)
             #     # self.obstacle_dots= np.concatenate((self.obstacle_dots, np.array([[0.05, i]])), axis=0)
             
-            for i in range(-55, 56, 1):
+            for i in range(-55, 56, 4):
                 x = i / 100 * self.width
-                for j in range(-55, 56, 1):
+                for j in range(-55, 56,4):
                     y = j / 100 * self.height
 
                     if (not self.is_collision_free(x, y)
@@ -315,12 +315,12 @@ class Map:
         self.obstacle_dots= np.concatenate((self.obstacle_dots, point), axis=0)
 
 
-    def get_obstacle_list(self):
+    def get_obstacle_list(self, size=OBSTACLE_SIZE):
         obstacle_list = []
 
         if (not self.initialize):
             for dot in self.obstacle_dots:
-                obstacle_list.append(Circle(dot[0], dot[1], self.obstacle_size))
+                obstacle_list.append(Circle(dot[0], dot[1], size))
 
         return obstacle_list
 
@@ -401,12 +401,13 @@ def navigation_loop(manager_mp: MPManager):
             final_goal = np.array(goal_setter.get_current_goal())
             print(f"New Goal: {final_goal}")
             start = np.array([robot.x, robot.y, robot.th])
-            expand_dis = 0.05
             path_resolution = 0.05
-            algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, node_distance=path_resolution)
+            algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=map.width, height = map.height, node_distance=path_resolution)
             plan = algorithm.plan()
+            print("The Plan:")
             print(plan)
             plan_index = 0
+            path_attempts = 0
 
             while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
                 
@@ -427,7 +428,8 @@ def navigation_loop(manager_mp: MPManager):
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
                 manager_mp.wl_goal_value = wl_goal
                 manager_mp.wr_goal_value = wr_goal
-                print(f"{wl_goal}, {wr_goal}")
+                print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
+                print(f"Temp Goal, x: {temp_goal[0]}, y: {temp_goal[1]}, z: {temp_goal[2]}")
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
@@ -438,22 +440,30 @@ def navigation_loop(manager_mp: MPManager):
                     x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
 
                 # Have we reached temp_goal?
+                print(f"Tentacle cost: {cost}")
                 if (cost < 1e-2):
+                    print(f"plan_index: {plan_index}")
                     if (plan_index < len(plan) - 1):
                         plan_index += 1
+                        print("New Temp Goal.")
 
                 algorithm.obstacle_list = map.get_obstacle_list()
 
-                if (not algorithm.is_collision_free_path(plan)):
-                    start = np.array([robot.x, robot.y, robot.th])
+                if (not algorithm.is_collision_free_path(plan, plan_index, 5)):
+                    if (path_attempts < MAX_PATH_ATTEMPTS):
+                        print("Collision Detected. New Plan.")
+                        start = np.array([robot.x, robot.y, robot.th])
 
-                    # print("why are u runnin")
-                    algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(), width=map.width, height = map.height, node_distance=path_resolution)
-                    new_plan = algorithm.plan()
+                        # print("why are u runnin")
+                        algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=map.width, height = map.height, node_distance=path_resolution)
+                        new_plan = algorithm.plan()
 
-                    if (len(new_plan) > 0):
-                        plan = new_plan
-                        plan_index = 0
+                        if (len(new_plan) > 0):
+                            plan = new_plan
+                            plan_index = 0
+                            path_attempts += 1
+                    else:
+                        print("Collision Detected, but Max Attempts reached. KEEP GOING.")
 
                 # Log data
                 manager_mp.poses.append([x,y,th])
@@ -483,7 +493,7 @@ def navigation_loop(manager_mp: MPManager):
                 duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
                 manager_mp.wl_goal_value = wl_goal
                 manager_mp.wr_goal_value = wr_goal
-                print(f"{wl_goal}, {wr_goal}")
+                print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
 
                 # Simulate robot motion - send duty cycle command to controller
                 if (not simulation):
