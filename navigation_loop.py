@@ -11,6 +11,7 @@ from matplotlib.patches import Rectangle as R
 import math
 import time
 from utils.const import *
+from utils.cubic_spline_planner import *
 
 from multiprocessing import Value
 from multiprocessing.managers import ListProxy
@@ -393,7 +394,7 @@ def navigation_loop(manager_mp: MPManager):
     map = Map(1.2, 1.2, obstacles)
     goal_setter = GoalSetter()
     
-    goal_setter.add_new_goal(0.325, 0.2, math.pi, 5)
+    # goal_setter.add_new_goal(0.325, 0.2, math.pi, 5)
     goal_setter.add_new_goal(-0.3, 0.2, math.pi/2, 5)
 
     while goal_setter.increment_goal():
@@ -403,7 +404,8 @@ def navigation_loop(manager_mp: MPManager):
             start = np.array([robot.x, robot.y, robot.th])
             path_resolution = 0.05
             algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=map.width, height = map.height, node_distance=path_resolution)
-            plan = algorithm.plan()
+            plan, cubic_plan = algorithm.plan()
+
             print("The Plan:")
             print(plan)
             plan_index = 0
@@ -456,7 +458,7 @@ def navigation_loop(manager_mp: MPManager):
 
                         # print("why are u runnin")
                         algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=map.width, height = map.height, node_distance=path_resolution)
-                        new_plan = algorithm.plan()
+                        new_plan, cubic_plan = algorithm.plan()
 
                         if (len(new_plan) > 0):
                             plan = new_plan
@@ -471,6 +473,10 @@ def navigation_loop(manager_mp: MPManager):
                 manager_mp.obstacle_data.extend(map.get_obstacle_log())
                 manager_mp.plan_mp[:] = []
                 manager_mp.plan_mp.extend(plan)
+                manager_mp.cx[:] = []
+                manager_mp.cx.extend(cubic_plan.cx)
+                manager_mp.cy[:] = []
+                manager_mp.cy.extend(cubic_plan.cy)
                 manager_mp.robot_data[:] = []
                 manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
                 manager_mp.goal_data[:] = []

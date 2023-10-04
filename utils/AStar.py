@@ -3,6 +3,7 @@
 # Bulk of Code originates from PythonRobotics.
 
 from utils.Obstacle import *
+from utils.cubic_spline_planner import *
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -87,7 +88,10 @@ class AStar():
                     angle = math.atan2(next_node[1] - node[1], next_node[0]-node[0])
                     node.append(angle)
 
-                return path
+                # Convert into Cubic Spline Plan
+                cubic_spline = path_to_cubic_spline(path)
+
+                return path, cubic_spline
 
             # Generate children
             children = []
@@ -115,7 +119,17 @@ class AStar():
             # Loop through children
             for child in children:
                 self.add_node(child, current_node, end_node)
-                
+        
+        # umm, epic fail?
+        print("AStar couldn't find a path. Generate path directly to goal instead.")
+        path = [[start_node.position[0], start_node.position[1], 0],
+                [end_node.position[0], end_node.position[1], 0]]
+        
+        
+        # Convert into Cubic Spline Plan
+        cubic_spline = path_to_cubic_spline(path)
+
+        return path, cubic_spline
 
     def add_node(self, child,current_node, end_node):
         # Child is on the closed list

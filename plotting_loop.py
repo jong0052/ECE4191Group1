@@ -64,6 +64,8 @@ def plotting_loop(manager_mp: MPManager):
     robot_data_local = []
     plan_local = []
     goal_data_local = []
+    cx_local = []
+    cy_local = []
 
     while True:
         time.sleep(1)
@@ -71,6 +73,8 @@ def plotting_loop(manager_mp: MPManager):
         poses_local_unstable = manager_mp.poses[:]
         robot_data_local_unstable = manager_mp.robot_data[:]
         plan_local_unstable = manager_mp.plan_mp[:]
+        cx_local_unstable = manager_mp.cx[:]
+        cy_local_unstable = manager_mp.cy[:]
         obstacle_data_local_unstable = manager_mp.obstacle_data[:]
         goal_data_local_unstable = manager_mp.goal_data[:]
 
@@ -88,6 +92,12 @@ def plotting_loop(manager_mp: MPManager):
             
         if (len(goal_data_local_unstable) >0):
             goal_data_local = goal_data_local_unstable
+
+        if (len(cx_local_unstable) >0):
+            cx_local = cx_local_unstable
+            
+        if (len(cy_local_unstable) >0):
+            cy_local = cy_local_unstable
 
         if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
             print("Failed to plot, empty data...")
@@ -134,15 +144,21 @@ def plotting_loop(manager_mp: MPManager):
             plan_x_data = np.append(plan_x_data, plan_local[i][0])
             plan_y_data = np.append(plan_y_data, plan_local[i][1])
             plan_th_data = np.append(plan_th_data, plan_local[i][2])
+            
+        plt.plot(plan_x_data, plan_y_data, "xb", label="Data points")
+        if (len(cx_local) > 0 and len(cy_local) > 0):
+            plt.plot(cx_local, cy_local, "-r", label="Cubic spline path")
 
-        plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
+        # plt.quiver(plan_x_data,plan_y_data,0.1*np.cos(plan_th_data),0.1*np.sin(plan_th_data), color="r")
 
         #plt.plot(obstacles[:,0],obstacles[:,1],'bo',markersize=15,alpha=0.2)
         plt.xlim(-1,1)
         plt.ylim(-1,1)
+        plt.grid(True)
         plt.xlabel('x-position (m)')
         plt.ylabel('y-position (m)')
         plt.grid()
+        plt.legend()
 
         plt.pause(0.0001)
         plt.show(block=False)

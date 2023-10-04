@@ -1,5 +1,6 @@
 # This file is the main code chunk running, and serves for multiprocessing.
-from multiprocessing import Process, Value, Manager
+from multiprocessing import *
+import multiprocessing
 from multiprocessing.managers import BaseManager, NamespaceProxy
 
 from utils.mpManager import MPManager
@@ -7,6 +8,7 @@ from utils.mpManager import MPManager
 from navigation_loop import *
 from plotting_loop import *
 from utils.const import *
+import os
 
 if (not simulation):
     from ultrasonic_loop import *
@@ -22,6 +24,8 @@ class TestProxy(NamespaceProxy):
         return callmethod('b')
 
 def main():
+    print(f"CPU Count: {multiprocessing.cpu_count()}")
+
     # This is pretty epic workaround but it doesn't work with Objects in an Object. So for now,
     # supported is primitives and things supported by Managers.
     # Add Variables in utils/mpManager.py!
