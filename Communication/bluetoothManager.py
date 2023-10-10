@@ -7,6 +7,8 @@ import math
 from multiprocessing import *
 from multiprocessing.managers import BaseManager, NamespaceProxy
 
+port = 55
+
 class BluetoothMPManager:
     def __init__(self):
         manager = Manager()
@@ -69,9 +71,9 @@ def get_mac_address() -> str:
 # Client: Acts as the sender.
 def bluetooth_client(bluetooth_manager: BluetoothMPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-    host_address = "D8:3A:DD:21:80:55" #Fill in host mac address here
+    host_address = "d8:3a:dd:21:86:59" #Fill in host mac address here
     # address_other = "D8:3A:DD:21:80:55"
-    s.connect((host_address,1))
+    s.connect((host_address,port))
     while(1):
         our_data = BluetoothData(bluetooth_manager.our_robot_state, bluetooth_manager.our_robot_pose, bluetooth_manager.our_robot_goal)
         our_json_data = our_data.to_json()
@@ -98,7 +100,7 @@ def bluetooth_client(bluetooth_manager: BluetoothMPManager):
 def bluetooth_server(bluetooth_manager: BluetoothMPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     host_address = get_mac_address() #Fill in host mac address here
-    s.bind((host_address,1))
+    s.bind((host_address,port))
 
     s.listen(1)
 
@@ -146,17 +148,17 @@ if __name__ == "__main__":
     manager.start()
     bluetooth_manager = manager.BluetoothMPManager()
 
-    host = True
+    host = False
 
-    # if (host):
-    #     procHost = Process(target=bluetooth_server,args=(bluetooth_manager,))
-    #     procHost.start()
-    #     procHost.join()
+    if (host):
+        procHost = Process(target=bluetooth_server,args=(bluetooth_manager,))
+        procHost.start()
+        procHost.join()
 
-    # else:
-    #     procClient = Process(target=bluetooth_client,args=(bluetooth_manager,))
-    #     procClient.start()
-    #     procClient.join()
+    else:
+        procClient = Process(target=bluetooth_client,args=(bluetooth_manager,))
+        procClient.start()
+        procClient.join()
 
     procRandom = Process(target=random_update, args=(bluetooth_manager,))
     procRandom.start()
