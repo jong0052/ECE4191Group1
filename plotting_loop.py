@@ -10,7 +10,7 @@ from math import cos, sin, tan, pi
 import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
-obstacles = [Circle(0,0.2,0.15)]
+# obstacles = [Circle(0,0.2,0.15)]
 
 
 def rot_mat_2d(angle):
@@ -64,6 +64,7 @@ def plotting_loop(manager_mp: MPManager):
     robot_data_local = []
     plan_local = []
     goal_data_local = []
+    other_robot_car = []
 
     while True:
         time.sleep(1)
@@ -73,6 +74,7 @@ def plotting_loop(manager_mp: MPManager):
         plan_local_unstable = manager_mp.plan_mp[:]
         obstacle_data_local_unstable = manager_mp.obstacle_data[:]
         goal_data_local_unstable = manager_mp.goal_data[:]
+        other_robot_car_unstable = manager_mp.other_robot_pose[:]
 
         if (len(poses_local_unstable) > 0):
             poses_local= poses_local_unstable
@@ -83,11 +85,14 @@ def plotting_loop(manager_mp: MPManager):
         if (len(obstacle_data_local_unstable) > 0):
             obstacle_data_local = obstacle_data_local_unstable
 
-        if (len(plan_local_unstable) >0):
+        if (len(plan_local_unstable) > 0):
             plan_local = plan_local_unstable
             
-        if (len(goal_data_local_unstable) >0):
+        if (len(goal_data_local_unstable) > 0):
             goal_data_local = goal_data_local_unstable
+
+        if (len(other_robot_car_unstable) > 0):
+            other_robot_car = other_robot_car_unstable
 
         if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
             print("Failed to plot, empty data...")
@@ -109,6 +114,9 @@ def plotting_loop(manager_mp: MPManager):
         # plt.plot(robot_data_local[0], robot_data_local[1],'k',marker='+')
         # plt.quiver(robot_data_local[0],robot_data_local[1],0.1*np.cos(robot_data_local[2]),0.1*np.sin(robot_data_local[2]))
         plot_car(robot_data_local[0],robot_data_local[1],robot_data_local[2])
+        
+        if (len(other_robot_car) > 0):
+            plot_car(other_robot_car[0],other_robot_car[1],0)
 
         plt.plot(goal_data_local[0],goal_data_local[1],'x',markersize=5)
         plt.quiver(goal_data_local[0],goal_data_local[1],0.1*np.cos(goal_data_local[2]),0.1*np.sin(goal_data_local[2]))
@@ -121,9 +129,9 @@ def plotting_loop(manager_mp: MPManager):
         plt.ylabel('y-position (m)')
         plt.grid()
 
-        for obstacle_coords in np_obstacle_data:
-            patch = C((obstacle_coords[0],obstacle_coords[1]), OBSTACLE_SIZE, fill=False, edgecolor='blue')
-            ax.add_patch(patch)
+        # for obstacle_coords in np_obstacle_data:
+        #     patch = C((obstacle_coords[0],obstacle_coords[1]), OBSTACLE_SIZE, fill=False, edgecolor='blue')
+        #     ax.add_patch(patch)
         
 
         plan_x_data = []

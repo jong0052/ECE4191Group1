@@ -66,7 +66,7 @@ class DiffDriveRobot:
     def pose_update(self, duty_cycle_l = 0, duty_cycle_r = 0, wl = 0, wr = 0):
         # print(self.last)
         dt = time.time() - self.last[-1]
-        print(f"dt: {dt}")
+        # print(f"dt: {dt}")
 
         # print(duty_cycle_l)
         # print(duty_cycle_r)
@@ -133,20 +133,20 @@ class TentaclePlanner:
         # Tentacles are possible trajectories to follow
         self.tentacles = []
         for v in range(0,11, 1):
-            for w in range(-10,11, 1):
-                self.tentacles.append((v/200, w/10))
+            for w in range(-20,21, 1):
+                self.tentacles.append((v/200, w/20))
 
         self.reverse_tentacles = []
         for v in range(0,11, 1):
-            for w in range(-10,11, 1):
-                self.reverse_tentacles.append((-v/200, w/10))
+            for w in range(-20,21, 1):
+                self.reverse_tentacles.append((-v/200, w/20))
             # print(self.tentacles)
   
         self.alpha = alpha
         self.beta = beta
     
     # Play a trajectory and evaluate where you'd end up
-    def roll_out(self,v,w,goal_x,goal_y,goal_th,x,y,th,obstacles):
+    def roll_out(self,v,w,goal_x,goal_y,goal_th,x,y,th,obstacles,collision):
         
         for j in range(self.steps):
         
@@ -154,8 +154,9 @@ class TentaclePlanner:
             y = y + self.dt*v*np.sin(th)
             th = (th + w*self.dt)
             
-            if (self.check_collision(x,y,obstacles)):
-                return np.inf
+            if collision:
+                if (self.check_collision(x,y,obstacles)):
+                    return np.inf
         
         # Wrap angle error -pi,pi
         e_th = goal_th-th
@@ -177,12 +178,10 @@ class TentaclePlanner:
     def plan(self,goal_x,goal_y,goal_th,x,y,th,obstacles, reverse=False, collision= True):
         
         costs =[]
-        if not collision:
-            obstacles = []
 
         if (not reverse):
             for v,w in self.tentacles:
-                costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles))
+                costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles,collision))
             
             best_idx = np.argmin(costs)
             best_costs = np.min(costs)
@@ -191,15 +190,15 @@ class TentaclePlanner:
 
             return self.tentacles[best_idx], best_costs
         else:
-            for v,w in self.reverse:
-                costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles))
+            for v,w in self.reverse_tentacles:
+                costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles,collision))
             
             best_idx = np.argmin(costs)
             best_costs = np.min(costs)
 
             # print(self.tentacles[best_idx])
 
-            return self.reverse[best_idx], best_costs
+            return self.reverse_tentacles[best_idx], best_costs
 
 class Map:
     def __init__(self, width = 2, height = 2, true_obstacles = []):
@@ -350,14 +349,14 @@ class Map:
         return obstacle_list
 
 class Goal():
-    def __init__(self, x=0, y=0, theta=0, threshold=1e-2):
+    def __init__(self, x=0, y=0, theta=0, threshold=1e-3):
         self.x = x
         self.y = y
         self.theta = theta
 
         self.threshold = threshold
         self.alpha = 3 # x y factor
-        self.beta = 0.1 # th factor
+        self.beta = 0.5 # th factor
     
     def check_reach_goal(self, robot_x, robot_y, robot_th):
         e_th = self.theta-robot_th
@@ -391,7 +390,10 @@ class RobotSystem():
         print(f"New Goal: {final_goal}")
         start = np.array([self.robot.x, self.robot.y, self.robot.th])
         path_resolution = 0.05
-        algorithm = AStar(start = start, goal=final_goal, obstacle_list=self.map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=self.map.width, height = self.map.height, node_distance=path_resolution)
+        if collision:
+            algorithm = AStar(start = start, goal=final_goal, obstacle_list=self.map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=self.map.width, height = self.map.height, node_distance=path_resolution)
+        else:
+            algorithm = AStar(start = start, goal=final_goal, obstacle_list=[], width=self.map.width, height = self.map.height, node_distance=path_resolution)
         plan = algorithm.plan()
 
         print("The Plan:")
@@ -399,53 +401,56 @@ class RobotSystem():
         plan_index = 0
         path_attempts = 0
 
+        last_duty_cycle_l = 0
+        last_duty_cycle_r = 0
+
         while (not goal.check_reach_goal(self.robot.x, self.robot.y, self.robot.th)):
             
             # Map Generation for obstacles
             self.map.update(self.robot.x, self.robot.y, self.robot.th, self.manager_mp.usLeft_update, self.manager_mp.usFront_update, self.manager_mp.usRight_update, self.manager_mp.usLeft_value, self.manager_mp.usFront_value, self.manager_mp.usRight_value)
             
             temp_goal = plan[plan_index]
-            if self.map.is_collision_free(self.robot.x, self.robot.y):
-                # print(map.obstacle_dots)
-
-                # Example motion using controller
-                tentacle,cost = self.tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],self.robot.x,self.robot.y,self.robot.th, self.map.obstacle_dots, reverse, collision)
-                v,w=tentacle
-            else:
-                v, w = -0.1, 0
-                cost = np.inf
+            tentacle,cost = self.tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],self.robot.x,self.robot.y,self.robot.th, self.map.obstacle_dots, reverse, collision)
+            v,w=tentacle
 
             duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = self.controller.drive(v,w,self.robot.wl,self.robot.wr)
             self.manager_mp.wl_goal_value = wl_goal
             self.manager_mp.wr_goal_value = wr_goal
-            print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
-            print(f"Temp Goal, x: {temp_goal[0]}, y: {temp_goal[1]}, z: {temp_goal[2]}")
+            # print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
+            # print(f"Temp Goal, x: {temp_goal[0]}, y: {temp_goal[1]}, z: {temp_goal[2]}")
 
             # Simulate robot motion - send duty cycle command to controller
             if (not simulation):
                 wl = ((self.manager_mp.current_wl/ 60)* 2*math.pi)
                 wr = ((self.manager_mp.current_wr/ 60)* 2*math.pi)
-                x,y,th = self.robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
+                x,y,th = self.robot.pose_update(last_duty_cycle_l,last_duty_cycle_r, wl, wr)
             else:
-                x,y,th = self.robot.pose_update(duty_cycle_l,duty_cycle_r)
+                x,y,th = self.robot.pose_update(last_duty_cycle_l,last_duty_cycle_r)
+
+            last_duty_cycle_l = duty_cycle_l
+            last_duty_cycle_r = duty_cycle_r
 
             # Have we reached temp_goal?
-            print(f"Tentacle cost: {cost}")
+            # print(f"Tentacle cost: {cost}")
             if (cost < 1e-2):
-                print(f"plan_index: {plan_index}")
+                # print(f"plan_index: {plan_index}")
                 if (plan_index < len(plan) - 1):
                     plan_index += 1
-                    print("New Temp Goal.")
+                    # print("New Temp Goal.")
 
             algorithm.obstacle_list = self.map.get_obstacle_list()
 
-            if (not algorithm.is_collision_free_path(plan, plan_index, 5)):
+            if (collision and not algorithm.is_collision_free_path(plan, plan_index, 5)):
                 if (path_attempts < MAX_PATH_ATTEMPTS):
                     print("Collision Detected. New Plan.")
                     start = np.array([self.robot.x, self.robot.y, self.robot.th])
 
                     # print("why are u runnin")
-                    algorithm = AStar(start = start, goal=final_goal, obstacle_list=self.map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=self.map.width, height = self.map.height, node_distance=path_resolution)
+                    if collision:
+                        algorithm = AStar(start = start, goal=final_goal, obstacle_list=self.map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=self.map.width, height = self.map.height, node_distance=path_resolution)
+                    else:
+                        algorithm = AStar(start = start, goal=final_goal, obstacle_list=[], width=self.map.width, height = self.map.height, node_distance=path_resolution)
+        
                     new_plan = algorithm.plan()
 
                     if (len(new_plan) > 0):
@@ -467,50 +472,149 @@ class RobotSystem():
             self.manager_mp.goal_data[:] = []
             self.manager_mp.goal_data.extend(goal.to_list())
             
-            print("loop 1")
+            # print("loop 1")
 
         # Done.
+
+        self.robot.wl = 0
+        self.robot.wr = 0
         return True
     
     def unload_package(self):
-        pass
+        time.sleep(3)
+        return
 
     def load_package(self):
-        pass
+        time.sleep(3)
+        return
+    
+    def wait_for_state(self, required_state = []):
+        while True:
+            for state in required_state:
+                if (state == self.manager_mp.other_robot_state):
+                    return
+
+            print(f"Waiting for other robot... (State: {self.manager_mp.other_robot_state}, Required: {required_state})")
+            time.sleep(0.5)
+
+    def set_state(self, state):
+        self.manager_mp.robot_state = state
+        print(f"Set State to {state}")
+
+def simulate_other_robot_loop(manager_mp : MPManager):
+    manager_mp.other_robot_state = 0
+    manager_mp.other_robot_pose = [-0.2, -0.45]
+
+    # Loading...
+    time.sleep(5)
+
+    # Go to corner.
+    while (True):
+        # State 1.
+        for x in [-0.2,-0.25,-0.3,-0.35,-0.4,-0.45]:
+            manager_mp.other_robot_pose = [x, -0.45]
+            time.sleep(0.25)
+
+        print("Other State: 1")
+        manager_mp.other_robot_state = 1
+        
+        while (manager_mp.robot_state == 2 or manager_mp.robot_state == 0):
+            time.sleep(1)
+        
+        # State 2
+        print("Other State: 2")
+        manager_mp.other_robot_state = 2
+
+        for y in range(-9, 10, 1):
+            manager_mp.other_robot_pose = [-0.45, y/20]
+            time.sleep(0.25)
+        for x in range(-9, 10, 1):
+            manager_mp.other_robot_pose = [x/20, 0.45]
+            time.sleep(0.25)
+
+        while (manager_mp.robot_state == 3):
+            time.sleep(0.25)
+        for y in range(-9, 10, 1):
+            manager_mp.other_robot_pose = [0.45, -y/20]
+            time.sleep(0.25)
+
+        # State 3
+        print("Other State: 3")
+        manager_mp.other_robot_state = 3
+
+        while (manager_mp.robot_state == 1):
+            time.sleep(0.25)
+        
+        # State 4
+        for y in range(-9, 1, 1):
+            manager_mp.other_robot_pose = [-x/20, -0.45]
+            time.sleep(0.25)
+            
+        print("Other State: 4")
+        manager_mp.other_robot_state = 4
+        time.sleep(5)
+        for y in range(0, 4, 1):
+            manager_mp.other_robot_pose = [-x/20, -0.45]
+            time.sleep(0.25)
 
 def navigation_loop(manager_mp: MPManager):
+    init_goal = Goal(0.2, -0.4, math.pi/2)
     start_goal = Goal(0,0,math.pi/2)
-    parcel_A_goal = Goal(-0.6,0.6, math.pi/2)
-    parcel_B_goal = Goal(0,0.6, math.pi/2)
-    parcel_C_goal = Goal(0.6, 0.6, math.pi/2)
+    parcel_A_goal_init = Goal(-0.4,0.3, math.pi/2)
+    parcel_A_goal = Goal(-0.4,0.45, math.pi/2)
+    parcel_B_goal_init = Goal(0,0.3, math.pi/2)
+    parcel_B_goal = Goal(0,0.45, math.pi/2)
+    parcel_C_goal_init = Goal(0.4, 0.3, math.pi/2)
+    parcel_C_goal = Goal(0.4, 0.45, math.pi/2)
+    loading_zone = Goal(0, -0.45, math.pi/2)
 
-    system = RobotSystem(manager_mp, [0.2,-0.4,math.pi/2])
+    system = RobotSystem(manager_mp, [0.2,-0.45,math.pi/2])
 
     # State 0: Initialize
     # - Load Package
     # - Move to Centre point.
     # - Wait for Other Team to get set to State 1.
     # - To State 2 if travelling first in field.
+    # system.drive_to_goal(loading_zone)
+    system.drive_to_goal(init_goal) # just so we have map
+    system.load_package()
     system.drive_to_goal(start_goal)
     
-    # State 1: Loaded and Ready.
-    # - Wait for Other Team to return (State 3)
-    # - To State 2
+    init_skip = True
 
+    while (True):
+        # State 1: Loaded and Ready.
+        # - Wait for Other Team to return (State 3)
+        # - To State 2
+        if (not init_skip):
+            system.drive_to_goal(start_goal, False, False)
+            system.set_state(1)
+            system.wait_for_state([3, 4, 5])
+        else:
+            init_skip = False
 
-    # State 2: In the Field.
-    # - Travel to Delivery Package point
-    # - Unload
-    # - Wait for Other Team to reach Loaded and Ready (State 1)
-    # - Return to State 3 zone
-    
-    # State 3: Returned
-    # - Wait for Other Team to be in the Field (State 2)
-    # - Go to State 4
+        # State 2: In the Field.
+        # - Travel to Delivery Package point
+        # - Unload
+        # - Wait for Other Team to reach Loaded and Ready (State 1)
+        # - Return to State 3 zone
+        system.set_state(2)
+        system.drive_to_goal(parcel_A_goal_init, False, False)
+        system.drive_to_goal(parcel_A_goal, False, False)
+        system.unload_package()
+        system.wait_for_state([1,5])
+        
+        # State 3: Returned
+        # - Wait for Other Team to be in the Field (State 2)
+        # - Go to State 4
+        system.drive_to_goal(start_goal, True, False)
+        system.set_state(3)
+        system.wait_for_state([2,5])
 
-    # State 4: Loading
-    # - Get package loaded
-    # - Travel to Centre Point
-    # - Go to State 1
-
-    pass
+        # State 4: Loading
+        # - Get package loaded
+        # - Travel to Centre Point
+        # - Go to State 1
+        system.drive_to_goal(loading_zone, True, False)
+        system.set_state(4)
+        system.load_package()
