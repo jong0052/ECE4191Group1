@@ -126,26 +126,27 @@ class RobotController:
     
 class TentaclePlanner:
     
-    def __init__(self,dt=0.1,steps=5,alpha=1,beta=0.1, reverse=False):
+    def __init__(self,dt=0.1,steps=5,alpha=1,beta=0.1):
         
         self.dt = dt
         self.steps = steps
         # Tentacles are possible trajectories to follow
-        if (reverse):
-            self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0),(-0.1,1.0),(-0.1,-1.0),(-0.1,0.5),(-0.1,-0.5),(-0.1,0.0)]
-        else:
-            #self.tentacles = [(0.0,1.0),(0.0,-1.0),(0.1,1.0),(0.1,-1.0),(0.1,0.5),(0.1,-0.5),(0.1,0.0),(0.0,0.0)]
-            self.tentacles = []
-            for v in range(0,11, 1):
-               for w in range(-10,11, 1):
-                   self.tentacles.append((v/200, w/10))
+        self.tentacles = []
+        for v in range(0,11, 1):
+            for w in range(-10,11, 1):
+                self.tentacles.append((v/200, w/10))
+
+        self.reverse_tentacles = []
+        for v in range(0,11, 1):
+            for w in range(-10,11, 1):
+                self.reverse_tentacles.append((-v/200, w/10))
             # print(self.tentacles)
   
         self.alpha = alpha
         self.beta = beta
     
     # Play a trajectory and evaluate where you'd end up
-    def roll_out(self,v,w,goal_x,goal_y,goal_th,x,y,th, obstacles):
+    def roll_out(self,v,w,goal_x,goal_y,goal_th,x,y,th,obstacles):
         
         for j in range(self.steps):
         
@@ -173,18 +174,32 @@ class TentaclePlanner:
         
     
     # Choose trajectory that will get you closest to the goal
-    def plan(self,goal_x,goal_y,goal_th,x,y,th,obstacles):
+    def plan(self,goal_x,goal_y,goal_th,x,y,th,obstacles, reverse=False, collision= True):
         
         costs =[]
-        for v,w in self.tentacles:
-            costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles))
-        
-        best_idx = np.argmin(costs)
-        best_costs = np.min(costs)
+        if not collision:
+            obstacles = []
 
-        # print(self.tentacles[best_idx])
+        if (not reverse):
+            for v,w in self.tentacles:
+                costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles))
+            
+            best_idx = np.argmin(costs)
+            best_costs = np.min(costs)
 
-        return self.tentacles[best_idx], best_costs
+            # print(self.tentacles[best_idx])
+
+            return self.tentacles[best_idx], best_costs
+        else:
+            for v,w in self.reverse:
+                costs.append(self.roll_out(v,w,goal_x,goal_y,goal_th,x,y,th,obstacles))
+            
+            best_idx = np.argmin(costs)
+            best_costs = np.min(costs)
+
+            # print(self.tentacles[best_idx])
+
+            return self.reverse[best_idx], best_costs
 
 class Map:
     def __init__(self, width = 2, height = 2, true_obstacles = []):
@@ -334,184 +349,168 @@ class Map:
 
         return obstacle_list
 
-class GoalSetter():
-    def __init__(self):
-        self.goals = []
-        self.wait_times = []
-        self.current_id = -1
+class Goal():
+    def __init__(self, x=0, y=0, theta=0, threshold=1e-2):
+        self.x = x
+        self.y = y
+        self.theta = theta
 
-        # Thresholds for reaching goal
-        self.threshold = 1e-2
+        self.threshold = threshold
         self.alpha = 3 # x y factor
         self.beta = 0.1 # th factor
-
-    def get_current_goal(self):
-        if (self.current_id < len(self.goals)):
-            return self.goals[self.current_id]
-        else:
-            return []
-       
-    def get_current_wait(self):
-        if (self.current_id < len(self.wait_times)):
-            return self.wait_times[self.current_id]
-        else:
-            return 5
-        
-    def add_emergency_goal(self, goal_x, goal_y, goal_th):
-        self.goals.insert(self.current_id, [goal_x, goal_y, goal_th])
-
-    def add_new_goal(self, goal_x, goal_y, goal_th, wait_time = 5):
-        self.goals.append([goal_x, goal_y, goal_th])
-        self.wait_times.append(wait_time)
-        
+    
     def check_reach_goal(self, robot_x, robot_y, robot_th):
-        goal_x, goal_y, goal_th = self.get_current_goal()
-
-        e_th = goal_th-robot_th
+        e_th = self.theta-robot_th
         e_th = np.arctan2(np.sin(e_th),np.cos(e_th))
         
-        cost = self.alpha*((goal_x-robot_x)**2 + (goal_y-robot_y)**2) + self.beta*(e_th**2)
+        cost = self.alpha*((self.x-robot_x)**2 + (self.y-robot_y)**2) + self.beta*(e_th**2)
 
         if cost < self.threshold:
             return True
         else:
             return False
+    
+    def to_nparray(self):
+        return np.array([self.x, self.y, self.theta])
+    
+    def to_list(self):
+        return [self.x, self.y, self.theta]
 
-    # Increment Goal. If there's another goal, return True. If ran out of goals, return False.
-    def increment_goal(self):
-        self.current_id += 1
+class RobotSystem():
+    def __init__(self, manager_mp: MPManager, pose = [0, 0, math.pi/2]):
+        self.robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=pose[0],y=pose[1],th=pose[2])
+        self.controller = RobotController(Kp=1.0,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
+        self.tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
+        self.map = Map(1.2, 1.2, obstacles)
 
-        if (self.current_id < len(self.goals)):
-            return True
-        else:
-            return False
+        self.manager_mp = manager_mp
+
+    def drive_to_goal(self, goal: Goal = Goal(), reverse = False, collision = True) -> bool:
+                
+        final_goal = goal.to_nparray()
+        print(f"New Goal: {final_goal}")
+        start = np.array([self.robot.x, self.robot.y, self.robot.th])
+        path_resolution = 0.05
+        algorithm = AStar(start = start, goal=final_goal, obstacle_list=self.map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=self.map.width, height = self.map.height, node_distance=path_resolution)
+        plan = algorithm.plan()
+
+        print("The Plan:")
+        print(plan)
+        plan_index = 0
+        path_attempts = 0
+
+        while (not goal.check_reach_goal(self.robot.x, self.robot.y, self.robot.th)):
+            
+            # Map Generation for obstacles
+            self.map.update(self.robot.x, self.robot.y, self.robot.th, self.manager_mp.usLeft_update, self.manager_mp.usFront_update, self.manager_mp.usRight_update, self.manager_mp.usLeft_value, self.manager_mp.usFront_value, self.manager_mp.usRight_value)
+            
+            temp_goal = plan[plan_index]
+            if self.map.is_collision_free(self.robot.x, self.robot.y):
+                # print(map.obstacle_dots)
+
+                # Example motion using controller
+                tentacle,cost = self.tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],self.robot.x,self.robot.y,self.robot.th, self.map.obstacle_dots, reverse, collision)
+                v,w=tentacle
+            else:
+                v, w = -0.1, 0
+                cost = np.inf
+
+            duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = self.controller.drive(v,w,self.robot.wl,self.robot.wr)
+            self.manager_mp.wl_goal_value = wl_goal
+            self.manager_mp.wr_goal_value = wr_goal
+            print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
+            print(f"Temp Goal, x: {temp_goal[0]}, y: {temp_goal[1]}, z: {temp_goal[2]}")
+
+            # Simulate robot motion - send duty cycle command to controller
+            if (not simulation):
+                wl = ((self.manager_mp.current_wl/ 60)* 2*math.pi)
+                wr = ((self.manager_mp.current_wr/ 60)* 2*math.pi)
+                x,y,th = self.robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
+            else:
+                x,y,th = self.robot.pose_update(duty_cycle_l,duty_cycle_r)
+
+            # Have we reached temp_goal?
+            print(f"Tentacle cost: {cost}")
+            if (cost < 1e-2):
+                print(f"plan_index: {plan_index}")
+                if (plan_index < len(plan) - 1):
+                    plan_index += 1
+                    print("New Temp Goal.")
+
+            algorithm.obstacle_list = self.map.get_obstacle_list()
+
+            if (not algorithm.is_collision_free_path(plan, plan_index, 5)):
+                if (path_attempts < MAX_PATH_ATTEMPTS):
+                    print("Collision Detected. New Plan.")
+                    start = np.array([self.robot.x, self.robot.y, self.robot.th])
+
+                    # print("why are u runnin")
+                    algorithm = AStar(start = start, goal=final_goal, obstacle_list=self.map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=self.map.width, height = self.map.height, node_distance=path_resolution)
+                    new_plan = algorithm.plan()
+
+                    if (len(new_plan) > 0):
+                        plan = new_plan
+                        plan_index = 0
+                        path_attempts += 1
+                else:
+                    print("Collision Detected, but Max Attempts reached. KEEP GOING.")
+                    collision = False
+
+            # Log data
+            self.manager_mp.poses.append([x,y,th])
+            self.manager_mp.obstacle_data[:] = []
+            self.manager_mp.obstacle_data.extend(self.map.get_obstacle_log())
+            self.manager_mp.plan_mp[:] = []
+            self.manager_mp.plan_mp.extend(plan)
+            self.manager_mp.robot_data[:] = []
+            self.manager_mp.robot_data.extend([self.robot.x, self.robot.y, self.robot.th])
+            self.manager_mp.goal_data[:] = []
+            self.manager_mp.goal_data.extend(goal.to_list())
+            
+            print("loop 1")
+
+        # Done.
+        return True
+    
+    def unload_package(self):
+        pass
+
+    def load_package(self):
+        pass
 
 def navigation_loop(manager_mp: MPManager):
+    start_goal = Goal(0,0,math.pi/2)
+    parcel_A_goal = Goal(-0.6,0.6, math.pi/2)
+    parcel_B_goal = Goal(0,0.6, math.pi/2)
+    parcel_C_goal = Goal(0.6, 0.6, math.pi/2)
 
-    robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=0.325,y=0.2,th=0)
-    controller = RobotController(Kp=1.0,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
-    tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
-    map = Map(1.2, 1.2, obstacles)
-    goal_setter = GoalSetter()
+    system = RobotSystem(manager_mp, [0.2,-0.4,math.pi/2])
+
+    # State 0: Initialize
+    # - Load Package
+    # - Move to Centre point.
+    # - Wait for Other Team to get set to State 1.
+    # - To State 2 if travelling first in field.
+    system.drive_to_goal(start_goal)
     
-    # goal_setter.add_new_goal(0.325, 0.2, math.pi, 5)
-    goal_setter.add_new_goal(-0.3, 0.2, math.pi/2, 5)
+    # State 1: Loaded and Ready.
+    # - Wait for Other Team to return (State 3)
+    # - To State 2
 
-    while goal_setter.increment_goal():
-            
-            final_goal = np.array(goal_setter.get_current_goal())
-            print(f"New Goal: {final_goal}")
-            start = np.array([robot.x, robot.y, robot.th])
-            path_resolution = 0.05
-            algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=map.width, height = map.height, node_distance=path_resolution)
-            plan, cubic_plan = algorithm.plan()
 
-            print("The Plan:")
-            print(plan)
-            plan_index = 0
-            path_attempts = 0
+    # State 2: In the Field.
+    # - Travel to Delivery Package point
+    # - Unload
+    # - Wait for Other Team to reach Loaded and Ready (State 1)
+    # - Return to State 3 zone
+    
+    # State 3: Returned
+    # - Wait for Other Team to be in the Field (State 2)
+    # - Go to State 4
 
-            while (not goal_setter.check_reach_goal(robot.x, robot.y, robot.th)):
-                
-                # Map Generation for obstacles
-                map.update(robot.x, robot.y, robot.th, manager_mp.usLeft_update, manager_mp.usFront_update, manager_mp.usRight_update, manager_mp.usLeft_value, manager_mp.usFront_value, manager_mp.usRight_value)
-                
-                temp_goal = plan[plan_index]
-                if map.is_collision_free(robot.x, robot.y):
-                    # print(map.obstacle_dots)
+    # State 4: Loading
+    # - Get package loaded
+    # - Travel to Centre Point
+    # - Go to State 1
 
-                    # Example motion using controller
-                    tentacle,cost = tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],robot.x,robot.y,robot.th, map.obstacle_dots)
-                    v,w=tentacle
-                else:
-                    v, w = -0.1, 0
-                    cost = np.inf
-
-                duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
-                manager_mp.wl_goal_value = wl_goal
-                manager_mp.wr_goal_value = wr_goal
-                print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
-                print(f"Temp Goal, x: {temp_goal[0]}, y: {temp_goal[1]}, z: {temp_goal[2]}")
-
-                # Simulate robot motion - send duty cycle command to controller
-                if (not simulation):
-                    wl = ((manager_mp.current_wl/ 60)* 2*math.pi)
-                    wr = ((manager_mp.current_wr/ 60)* 2*math.pi)
-                    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
-                else:
-                    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
-
-                # Have we reached temp_goal?
-                print(f"Tentacle cost: {cost}")
-                if (cost < 1e-2):
-                    print(f"plan_index: {plan_index}")
-                    if (plan_index < len(plan) - 1):
-                        plan_index += 1
-                        print("New Temp Goal.")
-
-                algorithm.obstacle_list = map.get_obstacle_list()
-
-                if (not algorithm.is_collision_free_path(plan, plan_index, 5)):
-                    if (path_attempts < MAX_PATH_ATTEMPTS):
-                        print("Collision Detected. New Plan.")
-                        start = np.array([robot.x, robot.y, robot.th])
-
-                        # print("why are u runnin")
-                        algorithm = AStar(start = start, goal=final_goal, obstacle_list=map.get_obstacle_list(OBSTACLE_SIZE + 0.05), width=map.width, height = map.height, node_distance=path_resolution)
-                        new_plan, cubic_plan = algorithm.plan()
-
-                        if (len(new_plan) > 0):
-                            plan = new_plan
-                            plan_index = 0
-                            path_attempts += 1
-                    else:
-                        print("Collision Detected, but Max Attempts reached. KEEP GOING.")
-
-                # Log data
-                manager_mp.poses.append([x,y,th])
-                manager_mp.obstacle_data[:] = []
-                manager_mp.obstacle_data.extend(map.get_obstacle_log())
-                manager_mp.plan_mp[:] = []
-                manager_mp.plan_mp.extend(plan)
-                manager_mp.cx[:] = []
-                manager_mp.cx.extend(cubic_plan.cx)
-                manager_mp.cy[:] = []
-                manager_mp.cy.extend(cubic_plan.cy)
-                manager_mp.robot_data[:] = []
-                manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
-                manager_mp.goal_data[:] = []
-                manager_mp.goal_data.extend(goal_setter.get_current_goal())
-                
-                print("loop 1")
-
-            # Hardcode wait for Milestone 1
-            print(f"Reached Goal {goal_setter.current_id}, I am going to wait for {goal_setter.get_current_wait()} seconds.")
-            start_wait = time.time()
-            total_wait = goal_setter.get_current_wait()
-            dt = 0
-
-            while (dt <= total_wait):
-                dt = time.time() - start_wait
-                v, w = 0, 0
-
-                map.update(robot.x, robot.y, robot.th, manager_mp.usLeft_update, manager_mp.usFront_update, manager_mp.usRight_update, manager_mp.usLeft_value, manager_mp.usFront_value, manager_mp.usRight_value)
-
-                duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = controller.drive(v,w,robot.wl,robot.wr)
-                manager_mp.wl_goal_value = wl_goal
-                manager_mp.wr_goal_value = wr_goal
-                print(f"v: {v}, w: {w}, wl_goal: {wl_goal}, wr_goal: {wr_goal}")
-
-                # Simulate robot motion - send duty cycle command to controller
-                if (not simulation):
-                    wl = (manager_mp.current_wl / 60) * 2*math.pi
-                    wr = (manager_mp.current_wr / 60) * 2 * math.pi
-                    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r, wl, wr)
-                else:
-                    x,y,th = robot.pose_update(duty_cycle_l,duty_cycle_r)
-
-                # Log data
-                manager_mp.poses.append([x,y,th])
-                manager_mp.robot_data[:] = []
-                manager_mp.robot_data.extend([robot.x, robot.y, robot.th])
-                
-                time.sleep(0.1)
+    pass

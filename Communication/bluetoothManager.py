@@ -152,15 +152,21 @@ if __name__ == "__main__":
 
     if (host):
         procHost = Process(target=bluetooth_server,args=(bluetooth_manager,))
-        procHost.start()
-        procHost.join()
 
     else:
         procClient = Process(target=bluetooth_client,args=(bluetooth_manager,))
-        procClient.start()
-        procClient.join()
 
     procRandom = Process(target=random_update, args=(bluetooth_manager,))
+
+    if (host):
+        procHost.start()
+    else:
+        procClient.start()
     procRandom.start()
+
+    if (host):
+        procHost.join()
+    else:
+        procClient.join()
     procRandom.join()
     
