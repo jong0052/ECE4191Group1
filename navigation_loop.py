@@ -349,7 +349,7 @@ class Map:
         return obstacle_list
 
 class Goal():
-    def __init__(self, x=0, y=0, theta=0, threshold=1e-3):
+    def __init__(self, x=0, y=0, theta=0, threshold=1e-2):
         self.x = x
         self.y = y
         self.theta = theta
@@ -542,18 +542,18 @@ def simulate_other_robot_loop(manager_mp : MPManager):
         print("Other State: 3")
         manager_mp.other_robot_state = 3
 
-        while (manager_mp.robot_state == 1):
+        while (manager_mp.robot_state == 1 or manager_mp.robot_state == 4):
             time.sleep(0.25)
         
         # State 4
-        for y in range(-9, 1, 1):
+        for x in range(-9, 1, 1):
             manager_mp.other_robot_pose = [-x/20, -0.45]
             time.sleep(0.25)
             
         print("Other State: 4")
         manager_mp.other_robot_state = 4
         time.sleep(5)
-        for y in range(0, 4, 1):
+        for x in range(0, 4, 1):
             manager_mp.other_robot_pose = [-x/20, -0.45]
             time.sleep(0.25)
 

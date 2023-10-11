@@ -53,7 +53,7 @@ def main():
         proc3.start()
 
     proc1.join()
-    procOtherRobot.join()
+    procOtherRobot.join()   
     if not simulation:
         proc2.join()
         procUS.join()
