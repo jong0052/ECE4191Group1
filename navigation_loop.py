@@ -213,7 +213,7 @@ class Map:
 
         self.initialize = True
 
-    def update(self, robot_x, robot_y, robot_th, usLeft_update,usFront_update,  usRight_update, us_left=100, us_front=100, us_right=100):
+    def update(self, robot_x, robot_y, robot_th):
         # Ultrasonic Distance
         if simulation:
             distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
@@ -221,22 +221,7 @@ class Map:
         else:
             # us_left
             # self.generate_obstacle(robot_x, robot_y, robot_th, us_left, 0, 0, 0)
-
-            # us_front
-            if (usFront_update.value == 1):
-                self.generate_obstacle(robot_x, robot_y, robot_th, us_front, 0, 0, 0)
-                usFront_update.value = 0
-                
-            # us_front
-            if (usLeft_update.value == 1):
-                self.generate_obstacle(robot_x, robot_y, robot_th, us_left, -0.055, 0, 0)
-                usLeft_update.value = 0
-                
-            # us_front
-            if (usRight_update.value == 1):
-                self.generate_obstacle(robot_x, robot_y, robot_th, us_right, 0.055, 0, 0)
-                usRight_update.value = 0
-
+            pass
             # # us_right
             # self.generate_obstacle(robot_x, robot_y, robot_th, us_right, 0, 0, 0)
         # Generate obstacles
@@ -408,7 +393,7 @@ class RobotSystem():
         while (not goal.check_reach_goal(self.robot.x, self.robot.y, self.robot.th)):
             
             # Map Generation for obstacles
-            self.map.update(self.robot.x, self.robot.y, self.robot.th, self.manager_mp.usLeft_update, self.manager_mp.usFront_update, self.manager_mp.usRight_update, self.manager_mp.usLeft_value, self.manager_mp.usFront_value, self.manager_mp.usRight_value)
+            self.map.update(self.robot.x, self.robot.y, self.robot.th)
             
             temp_goal = plan[plan_index]
             tentacle,cost = self.tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],self.robot.x,self.robot.y,self.robot.th, self.map.obstacle_dots, reverse, collision)
