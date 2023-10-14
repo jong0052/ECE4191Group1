@@ -10,6 +10,7 @@ from matplotlib.patches import Circle as C
 from matplotlib.patches import Rectangle as R
 import math
 import time
+import random
 from utils.const import *
 from utils.cubic_spline_planner import *
 
@@ -486,7 +487,7 @@ class RobotSystem():
 
     def load_package(self):
         time.sleep(3)
-        return
+        return random.randint(0, 2)
     
     def wait_for_state(self, required_state = []):
         while True:
@@ -582,7 +583,7 @@ def navigation_loop(manager_mp: MPManager):
     # - To State 2 if travelling first in field.
     # system.drive_to_goal(loading_zone)
     system.drive_to_goal(init_goal) # just so we have map
-    system.load_package()
+    goal_number = system.load_package()
     system.drive_to_goal(start_goal)
     
     init_skip = True
@@ -604,8 +605,16 @@ def navigation_loop(manager_mp: MPManager):
         # - Wait for Other Team to reach Loaded and Ready (State 1)
         # - Return to State 3 zone
         system.set_state(2)
-        system.drive_to_goal(parcel_A_goal_init, False, False)
-        system.drive_to_goal(parcel_A_goal, False, False)
+        if (goal_number == 0):
+            system.drive_to_goal(parcel_A_goal_init, False, False)
+            system.drive_to_goal(parcel_A_goal, False, False)
+        elif (goal_number == 1):
+            system.drive_to_goal(parcel_B_goal_init, False, False)
+            system.drive_to_goal(parcel_B_goal, False, False)
+        elif (goal_number == 2):
+            system.drive_to_goal(parcel_C_goal_init, False, False)
+            system.drive_to_goal(parcel_C_goal, False, False)
+
         system.unload_package()
         system.wait_for_state([1,5])
         
@@ -623,4 +632,4 @@ def navigation_loop(manager_mp: MPManager):
         # - Go to State 1
         system.drive_to_goal(loading_zone, True, False)
         system.set_state(4)
-        system.load_package()
+        goal_number = system.load_package()
