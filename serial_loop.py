@@ -11,12 +11,12 @@ class Serializer:
 
     def read(self):
         line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-        # print("serial read: " + str(line))
+        print("serial read: " + str(line))
         self.decode_string(line)
     
     def write(self):
         self.ser.write(self.encode_string())
-        # print("serial write: " + str(self.encode_string()))
+        print("serial write: " + str(self.encode_string()))
 
     def decode_string(self,input_string):
         # Extracting numbers from the input_string using string manipulation

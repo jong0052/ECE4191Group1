@@ -78,23 +78,29 @@ def plotting_loop(manager_mp: MPManager):
 
         if (len(poses_local_unstable) > 0):
             poses_local= poses_local_unstable
+            print("got pose")
 
         if (len(robot_data_local_unstable) > 0):
             robot_data_local = robot_data_local_unstable
+            print("got robot")
 
         if (len(obstacle_data_local_unstable) > 0):
             obstacle_data_local = obstacle_data_local_unstable
+            print("got obstacle")
 
         if (len(plan_local_unstable) > 0):
             plan_local = plan_local_unstable
+            print("got plan")
             
         if (len(goal_data_local_unstable) > 0):
             goal_data_local = goal_data_local_unstable
+            print("got goal data")
 
         if (len(other_robot_car_unstable) > 0):
             other_robot_car = other_robot_car_unstable
+            print("got other robot car")
 
-        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(obstacle_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
+        if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
             print("Failed to plot, empty data...")
             continue
 
@@ -120,9 +126,10 @@ def plotting_loop(manager_mp: MPManager):
 
         plt.plot(goal_data_local[0],goal_data_local[1],'x',markersize=5)
         plt.quiver(goal_data_local[0],goal_data_local[1],0.1*np.cos(goal_data_local[2]),0.1*np.sin(goal_data_local[2]))
-
-        np_obstacle_data = np.array(obstacle_data_local)
-        plt.plot(np_obstacle_data[:,0],np_obstacle_data[:,1],'ko',markersize=5)
+        
+        if (len(obstacle_data_local) > 0):
+            np_obstacle_data = np.array(obstacle_data_local)
+            plt.plot(np_obstacle_data[:,0],np_obstacle_data[:,1],'ko',markersize=5)
         plt.xlim(-1,1)
         plt.ylim(-1,1)
         plt.xlabel('x-position (m)')
