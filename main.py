@@ -39,7 +39,7 @@ def main():
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(manager_mp,))
-        procUS = Process(target=usLoop, args=(manager_mp,))
+        # procUS = Process(target=usLoop, args=(manager_mp,))
 
     if plotting:
         proc3 = Process(target=plotting_loop, args=(manager_mp,))
@@ -48,7 +48,7 @@ def main():
     procOtherRobot.start()
     if not simulation:
         proc2.start()
-        procUS.start()
+        # procUS.start()
     if plotting:
         proc3.start()
 
@@ -56,7 +56,7 @@ def main():
     procOtherRobot.join()   
     if not simulation:
         proc2.join()
-        procUS.join()
+        # procUS.join()
     if plotting:
         proc3.join()
 
