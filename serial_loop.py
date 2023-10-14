@@ -1,5 +1,7 @@
 import serial
 import time
+import math
+from utils.mpManager import MPManager
 
 class Serializer:
     def __init__(self):
@@ -55,14 +57,14 @@ class SerialData:
         if wr_goal is not None:
             self.wr_goal = wr_goal
 
-def serializer_loop(manager_mp):
+def serializer_loop(manager_mp: MPManager):
     serializer = Serializer()
     while True:
         
         # Read Data
         # serializer.read()
-        wl_goal_rpm = manager_mp.wl_goal_value.value * 60 / (2 * math.pi)
-        wr_goal_rpm = manager_mp.wr_goal_value.value * 60 / (2 * math.pi)
+        wl_goal_rpm = manager_mp.wl_goal_value * 60 / (2 * math.pi)
+        wr_goal_rpm = manager_mp.wr_goal_value * 60 / (2 * math.pi)
         # print(wl_goal_rpm)
         # print(wr_goal_rpm)
         serializer.data.update(wl_goal=wl_goal_rpm, wr_goal=wr_goal_rpm)
@@ -71,7 +73,7 @@ def serializer_loop(manager_mp):
         serializer.read()
 
         # print("loop 2")
-        manager_mp.current_wl.value = serializer.data.wl_current
-        manager_mp.current_wr.value = serializer.data.wr_current
+        manager_mp.current_wl = serializer.data.wl_current
+        manager_mp.current_wr = serializer.data.wr_current
         
         #print("loop 2")
