@@ -465,6 +465,8 @@ class RobotSystem():
 
         self.robot.wl = 0
         self.robot.wr = 0
+        self.manager_mp.wl_goal_value = 0
+        self.manager_mp.wr_goal_value = 0
         return True
     
     def unload_package(self):
