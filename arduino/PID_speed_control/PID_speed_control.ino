@@ -5,7 +5,7 @@
 class PID_control{
   private:
     float kp, kd, ki, umax; // Parameters
-    float eprev, eintegral;
+    float eprev, eintegral, eintegral_raw;
   public:
   // Establish the C constructor(initialise KP = 1)
   PID_control(): kp(1), kd(0), ki(0), umax(255), eprev(0.0), eintegral(0.0){}
@@ -15,7 +15,7 @@ class PID_control{
   }
 
   // A function to compute the control signal
-  void evalu(int value, int target, float deltaT, int &pwr, int &dir){
+  void evalu(int value, int target, float deltaT, int &pwr, int &dir, int eint_k){
     // error
     int e = target - value;
   
@@ -23,8 +23,8 @@ class PID_control{
     float dedt = (e-eprev)/(deltaT);
   
     // integral
-    eintegral = eintegral + e*deltaT;
-  
+    eintegral_raw = eintegral + e*deltaT;
+    eintegral = eint_k*eintegral_raw;
     // control signal
     float u = kp*e + kd*dedt + ki*eintegral;
   
@@ -129,7 +129,7 @@ void setup() {
     pinMode(pwm[k], OUTPUT);
     pinMode(in[k], OUTPUT);
 
-    pid[k].setParams(20, 0, 0, 255);
+    pid[k].setParams(20, 0, 3, 255);
   }
   
   // Trigger an interrupt when encoder A rises
@@ -220,9 +220,14 @@ void loop() {
   v2Prev[1] = v2[1];
   
   //------------------ 5. Implement PID control ----------------------------
-  for (int k = 0; k < NUM_MOTORS; k++){
+for (int k = 0; k < NUM_MOTORS; k++){
     int pwr, dir;
-    pid[k].evalu(v1Filt[k], vt[k], deltaT, pwr, dir);
+    if(vt[k] != 0){
+      pid[k].evalu(v1Filt[k], vt[k], deltaT, pwr, dir, 1);
+    }
+    else{
+      pid[k].evalu(v1Filt[k], vt[k], deltaT, pwr, dir, 0);
+    }
     setMotor(dir, pwr, pwm[k], in[k]);
   }
 
