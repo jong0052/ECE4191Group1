@@ -1,38 +1,56 @@
 import RPi.GPIO as GPIO
 import time
 
-control = [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
+class Servo:
+    def __init__(self):
+        
+        self.control = [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
 
-servo = 22
+        self.servo = 18
 
-GPIO.setmode(GPIO.BOARD)
+        GPIO.setmode(GPIO.BCM)
 
-GPIO.setup(servo, GPIO.OUT)
-# in servo motor,
-# 1ms pulse for 0 degree (LEFT)
-# 1.5ms pulse for 90 degree (MIDDLE)
-# 2ms pulse for 180 degree (RIGHT)
+        GPIO.setup(self.servo, GPIO.OUT)
+        self.pwm = GPIO.PWM(self.servo, 50)  # 50hz frequency
+        
+    def unload(self):
 
-# so for 50hz, one frequency is 20ms
-# duty cycle for 0 degree = (1/20)*100 = 5%
-# duty cycle for 90 degree = (1.5/20)*100 = 7.5%
-# duty cycle for 180 degree = (2/20)*100 = 10%
+        self.pwm.start(7.5)  # starting duty cycle ( it set the servo to 0 degree )
 
-p = GPIO.PWM(servo, 50)  # 50hz frequency
+        try:
+            
+            print("loop")
+            # Rotate the servo in one direction (0 degrees)
+            self.pwm.ChangeDutyCycle(8)
+            time.sleep(1)
+            self.pwm.ChangeDutyCycle(0)
+            time.sleep(4)
 
-p.start(2.5)  # starting duty cycle ( it set the servo to 0 degree )
+            print("2")
+            # Rotate the servo in the other direction (180 degrees)
+            self.pwm.ChangeDutyCycle(4)
+            time.sleep(2)
+            self.pwm.ChangeDutyCycle(0)
+            time.sleep(4)
 
-try:
-    while True:
-        for x in range(11):
-            p.ChangeDutyCycle(control[x])
-            time.sleep(0.03)
-            print(x)
+        except KeyboardInterrupt:
+            GPIO.cleanup()
+            
 
-        for x in range(9, 0, -1):
-            p.ChangeDutyCycle(control[x])
-            time.sleep(0.03)
-            print(x)
+        # Stop the PWM and cleanup
+        self.pwm.stop()
+        GPIO.cleanup()
+        
+    def moving(self):
+        self.pwm.start(7.5)
+        try:
+            self.pwm.ChangeDutyCycle(4)
+        except KeyboardInterrupt:
+            GPIO.cleanup()
+        
 
-except KeyboardInterrupt:
-    GPIO.cleanup()
+
+newServo = Servo()
+newServo.moving()
+time.sleep(5)
+newServo.unload()
