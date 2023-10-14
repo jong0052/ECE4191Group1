@@ -219,6 +219,7 @@ class Map:
             distance = self.check_ultrasonic(robot_x, robot_y, robot_th)
             self.generate_obstacle(robot_x, robot_y, robot_th, distance, 0, 0, 0)
         else:
+            self.generate_obstacle(robot_x, robot_y, robot_th, 5, 0, 0, 0)
             # us_left
             # self.generate_obstacle(robot_x, robot_y, robot_th, us_left, 0, 0, 0)
             pass
