@@ -501,6 +501,11 @@ class RobotSystem():
         self.manager_mp.robot_state = state
         print(f"Set State to {state}")
 
+    def localization(self):
+        # Step 1: Align to Wall
+        # Step 2: Localization using TOF sensors
+        pass
+
 def simulate_other_robot_loop(manager_mp : MPManager):
     manager_mp.other_robot_state = 0
     manager_mp.other_robot_pose = [-0.2, -0.45]
@@ -610,6 +615,7 @@ def navigation_loop(manager_mp: MPManager):
         system.drive_to_goal(start_goal, True, False)
         system.set_state(3)
         system.wait_for_state([2,5])
+        system.localization()
 
         # State 4: Loading
         # - Get package loaded

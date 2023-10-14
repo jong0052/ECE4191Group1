@@ -71,7 +71,7 @@ def get_mac_address() -> str:
 # Client: Acts as the sender.
 def bluetooth_client(bluetooth_manager: BluetoothMPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-    host_address = "d8:3a:dd:21:86:59" #Fill in host mac address here
+    host_address = "d8:3a:dd:21:87:5e" #Fill in host mac address here
     # address_other = "D8:3A:DD:21:80:55"
     s.connect((host_address,port))
     while(1):
@@ -89,8 +89,8 @@ def bluetooth_client(bluetooth_manager: BluetoothMPManager):
 
         bluetooth_manager.other_robot_state = other_data.robot_state
         bluetooth_manager.other_robot_pose[:] = []
-        bluetooth_manager.other_robot_pose.extend(other_data.robot_state)
-        bluetooth_manager.other_robot_goal = other_data.robot_state
+        bluetooth_manager.other_robot_pose.extend(other_data.robot_pose)
+        bluetooth_manager.other_robot_goal = other_data.robot_goal
 
         time.sleep(1)
 
