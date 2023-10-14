@@ -21,48 +21,56 @@ class Serializer_GT:
         self.ser.close()
 
     def read_ang(self):
-        encoded_string = f"[221]".encode("utf-8")
-        self.ser.write(encoded_string)
-        line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-        print("Serial read: " + str(line))
-        self.decode_angle(line)
+        for i in range(0,10,1):
+            encoded_string = f"[221]".encode("utf-8")
+            self.ser.write(encoded_string)
+            line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
+            print("Serial read: " + str(line))            
+            time.sleep(0.1)
     
     def read_tof(self):
-        encoded_string = f"[222]".encode("utf-8")
-        self.ser.write(encoded_string)
-        line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-        print("Serial read: " + str(line))
-        self.decode_sensor(line)
+        for i in range(0,10,1):
+            encoded_string = f"[222]".encode("utf-8")
+            self.ser.write(encoded_string)
+            line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
+            print("Serial read: " + str(line))
+            time.sleep(0.1)
         # print("serial write: " + str(self.encode_string()))
 
     def decode_angle(self,input_string):
         # Extracting numbers from the input_string using string manipulation
         # Line Format: "Wheels: [wl, wr]"
-        if not input_string.startswith("Pico"):
-            return
+        if not input_string.startswith("Pico Angle"):
+            return False
     
         try:
             start_idx = input_string.index("[") + 1
             end_idx = input_string.index("]")
             yaw_ang, lin_v = [float(num) for num in input_string[start_idx:end_idx].split(',')]
         except ValueError:
-            raise ValueError("Invalid input format")
+            print("Invalid input format")
+            return False
         
         self.ang_data.update(yaw_ang, lin_v)
 
+        return True
+
         # Creating a SerialData object with the extracted numbers
     def decode_sensor(self,input_string):
-        if not input_string.startswith("Pico"):
-            return
+        if not input_string.startswith("Pico Sensor"):
+            return False
         
         try:
             start_idx = input_string.index("[") + 1
             end_idx = input_string.index("]")
             sensor_arr = [float(num) for num in input_string[start_idx:end_idx].split(',')]
         except ValueError:
-            raise ValueError("Invalid input format")
+            print("Invalid input format")
+            return False
         
         self.sensor_data.update(sensor_arr)
+
+        return True
        
 class AngleData:
     """

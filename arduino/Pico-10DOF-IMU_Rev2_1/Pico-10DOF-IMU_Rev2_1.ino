@@ -290,7 +290,7 @@ void read_sensors() {
   uint16_t ranges_mm[COUNT_SENSORS];
   for (int i = 0; i < COUNT_SENSORS; i++) {
     ranges_mm[i] = sensors[i].psensor->readRange();
-    delay(10);
+    delay(20);
   } 
 
   for (int i = 0; i < COUNT_SENSORS; i++) {
@@ -534,6 +534,7 @@ void loop1(){
       
       if (serial_code == 221) // Read IMU
       {
+        Serial.print("Pico Angle: [");
         float print_ore[2];
         print_ore[0] = current_yaw;
         print_ore[1] = lin_v_now;
@@ -544,6 +545,7 @@ void loop1(){
       else if (serial_code == 222) // Read Sensors
       {
         read_sensors();
+        Serial.print("Pico Sensor: [");
         float print_sens[8];
         for (int i = 0; i < COUNT_SENSORS; i++) {
           print_sens[i] = sensor_l0x[i];
@@ -569,7 +571,6 @@ void loop1(){
   }
 }
 void print_serial(float ser_arr[], int arr_size){
-  Serial.print("Pico: [");
   for (int i = 0; i < arr_size; i++){
     Serial.print(ser_arr[i]);
     if(i < arr_size-1){
