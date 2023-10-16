@@ -46,6 +46,8 @@ class BluetoothData():
         return f"State: {self.robot_state}\nPose: {self.robot_pose}\nGoal: {self.robot_goal}"
 
 def get_mac_address() -> str:
+    return "D8:3A:DD:21:86:3C" # Pi B
+    
     address = ':'.join(['{:02x}'.format((uuid.getnode() >> ele) & 0xff)
     for ele in range(0,8*6,8)][::-1])
 
@@ -83,6 +85,7 @@ def bluetooth_client(mp_manager: MPManager):
 def bluetooth_server(mp_manager: MPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     host_address = get_mac_address() #Fill in host mac address here
+    print(f"Host Address: {host_address}")
     s.bind((host_address,port))
 
     s.listen(1)
