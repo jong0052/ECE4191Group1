@@ -510,15 +510,15 @@ class RobotSystem():
                 rfid_out = readTag()
 
                 # Cry, 1 2 3 and 0 1 2.
-                if (rfid_out.startsWith("1")):
+                if (out.startswith("1")):
                     print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")
                     time.sleep(3)
                     return 0
-                elif (rfid_out == "2"):
+                elif (out.startswith("2")):
                     print("Package Found (2 -> 1) (Middle). Running in 3 Seconds.")
                     time.sleep(3)
                     return 1
-                elif (rfid_out == "3"):
+                elif (out.startswith("3")):
                     print("Package Found (3 -> 2) (Right). Running in 3 Seconds.")
                     time.sleep(3)
                     return 2
