@@ -48,3 +48,8 @@ class Servo:
         except KeyboardInterrupt:
             GPIO.cleanup()
         
+if __name__ == "__main__":
+    s = Servo()
+    s.moving()
+    time.sleep(5)
+    s.unload()
