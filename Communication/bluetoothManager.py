@@ -56,8 +56,8 @@ def get_mac_address() -> str:
 # Client: Acts as the sender.
 def bluetooth_client(mp_manager: MPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-    # host_address = "d8:3a:dd:21:87:5e" # Robot 33
-    host_address = "d8:3a:dd:21:86:3c" # Robot 1b
+    host_address = "d8:3a:dd:21:87:5e" # Robot 33
+    # host_address = "d8:3a:dd:21:86:3c" # Robot 1b
     s.connect((host_address,port))
     while(1):
         print("Client:")
