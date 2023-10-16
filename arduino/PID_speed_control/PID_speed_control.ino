@@ -129,7 +129,7 @@ void setup() {
     pinMode(pwm[k], OUTPUT);
     pinMode(in[k], OUTPUT);
 
-    pid[k].setParams(7, 0, 0.1, 255);
+    pid[k].setParams(10, 0, 8, 255);
   }
   
   // Trigger an interrupt when encoder A rises

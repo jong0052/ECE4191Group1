@@ -20,6 +20,7 @@ from multiprocessing import Value
 from multiprocessing.managers import ListProxy
 
 from serial_loop_gyro_tof import Serializer_GT
+from RFID import *
 
 class DiffDriveRobot:
 
@@ -493,14 +494,41 @@ class RobotSystem():
         return True
     
     def unload_package(self):
-        self.servo.unload()
-        time.sleep(3)
+        if not simulation:
+            self.servo.unload()
+        else:
+            time.sleep(3)
         return
 
     def load_package(self):
-        self.servo.moving()
+        if not simulation:
+            self.servo.moving()
+        
+            rfid_scanned = False 
+            rfid_out = ""
+            for i in range(0, 120, 1):
+                rfid_out = readTag()
+
+                # Cry, 1 2 3 and 0 1 2.
+                if (rfid_out == "1"):
+                    print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")
+                    time.sleep(3)
+                    return 0
+                elif (rfid_out == "2"):
+                    print("Package Found (2 -> 1) (Middle). Running in 3 Seconds.")
+                    time.sleep(3)
+                    return 1
+                elif (rfid_out == "3"):
+                    print("Package Found (3 -> 2) (Right). Running in 3 Seconds.")
+                    time.sleep(3)
+                    return 2
+
+                print("Loading Package, put tag in front of scanner.")
+                time.sleep(0.5) 
+        
+        print("Load Package timed out. Default to 1 (Middle).")
         time.sleep(3)
-        return random.randint(0, 2)
+        return 0
     
     def wait_for_state(self, required_state = []):
         while True:
@@ -518,7 +546,7 @@ class RobotSystem():
     def localization(self):
         # Step 1: Align to Wall
         # Step 2: Localization using TOF sensors
-        print("Performing Localization.")
+        print("Performing Localization...?")
         pass
 
 def simulate_other_robot_loop(manager_mp : MPManager):
@@ -588,7 +616,7 @@ def navigation_loop(manager_mp: MPManager):
     parcel_C_goal = Goal(0.4, 0.45, math.pi/2)
     loading_zone = Goal(0, -0.45, math.pi/2)
 
-    system = RobotSystem(manager_mp, [0.2,-0.45,math.pi/2])
+    system = RobotSystem(manager_mp, [0.2,-0.45, math.pi/2])
 
     # State 0: Initialize
     # - Load Package
