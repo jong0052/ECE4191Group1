@@ -4,7 +4,7 @@ class MPManager:
     def __init__(self):
         manager = Manager()
 
-        self.ready = False
+        self.ready = True
 
         self.poses = manager.list() # For Plotting
         self.obstacle_data = manager.list() # Map.obstacle_logs, each point is [x, y] for each obstacle dot

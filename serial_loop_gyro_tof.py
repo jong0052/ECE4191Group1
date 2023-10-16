@@ -16,8 +16,6 @@ class Serializer_GT:
         encoded_string = f"[201]".encode("utf-8")
         self.ser.write(encoded_string)
         print("Calibrating! Press ENTER to Proceed.")
-
-        input()
     
     # Terminate The pySerial Connection
     def close(self):

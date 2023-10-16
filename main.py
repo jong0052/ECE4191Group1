@@ -26,6 +26,11 @@ class TestProxy(NamespaceProxy):
 def main():
     print(f"CPU Count: {multiprocessing.cpu_count()}")
 
+    if (not simulation):
+        gyro = Serializer_GT()
+        gyro.activate()
+        input("Waiting for Calibration. Press Enter for Ready.")
+
     # This is pretty epic workaround but it doesn't work with Objects in an Object. So for now,
     # supported is primitives and things supported by Managers.
     # Add Variables in utils/mpManager.py!

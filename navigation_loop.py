@@ -371,12 +371,10 @@ class RobotSystem():
         self.tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
         self.map = Map(1.2, 1.2, obstacles)
 
-        if not (simulation):
-            self.gyro = Serializer_GT()
-            self.gyro.activate()
+        self.gyro = Serializer_GT()
 
         self.manager_mp = manager_mp
-        manager_mp.ready = True
+        # manager_mp.ready = True
 
     def imu_update(self):
         self.gyro.read_ang()
