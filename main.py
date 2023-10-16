@@ -11,7 +11,6 @@ from utils.const import *
 import os
 
 if (not simulation):
-    from ultrasonic_loop import *
     from serial_loop import *
 
 class TestProxy(NamespaceProxy):

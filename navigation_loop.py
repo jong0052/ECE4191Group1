@@ -381,7 +381,11 @@ class RobotSystem():
         angle_data = self.gyro.ang_data
         print(f"Robot Thinks: {self.robot.th}, IMU: {angle_data.yaw}")
         
-        self.robot.th = (angle_data.yaw + 90) / 360 * 2 * math.pi
+        yaw_angle = angle_data.yaw + 90
+        if (yaw_angle > 360):
+            yaw_angle = yaw_angle - 360
+        
+        output_angle = (yaw_angle) / 360 * 2 * math.pi
 
 
     def drive_to_goal(self, goal: Goal = Goal(), reverse = False, collision = True) -> bool:

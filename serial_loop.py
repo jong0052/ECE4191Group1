@@ -5,7 +5,7 @@ from utils.mpManager import MPManager
 
 class Serializer:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.1)
+        self.ser = serial.Serial('/dev/ttyUSB1', 115200, timeout=0.1)
         self.ser.reset_input_buffer()
         self.data = SerialData()
 
