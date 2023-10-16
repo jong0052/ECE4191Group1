@@ -60,7 +60,10 @@ class SerialData:
 def serializer_loop(manager_mp: MPManager):
     serializer = Serializer()
     while True:
-        
+        if not (manager_mp.ready):
+            time.sleep(0.5)
+            continue
+
         # Read Data
         # serializer.read()
         wl_goal_rpm = manager_mp.wl_goal_value * 60 / (2 * math.pi)

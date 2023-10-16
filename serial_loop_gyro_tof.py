@@ -15,10 +15,9 @@ class Serializer_GT:
     def activate(self):
         encoded_string = f"[201]".encode("utf-8")
         self.ser.write(encoded_string)
-        print("Callibrate for 50 seconds!")
-        for i in range (50, 0, -1):
-            print(f"Waiting: {i}")
-            time.sleep(1)
+        print("Calibrating! Press ENTER to Proceed.")
+
+        input()
     
     # Terminate The pySerial Connection
     def close(self):

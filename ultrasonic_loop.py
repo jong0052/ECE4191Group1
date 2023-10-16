@@ -80,6 +80,10 @@ def multi_dist (num_samp = 3, trig = GPIO_TRIGGER3, echo = GPIO_ECHO3, pin =  1)
 
 def usLoop(manager_mp: MPManager):
     while True:
+        if not (manager_mp.ready):
+            time.sleep(0.5)
+            continue
+
         value = []
         value.append(multi_dist(3, GPIO_TRIGGER2, GPIO_ECHO2,  1) / 100) 
         value.append(multi_dist(3, GPIO_TRIGGER3, GPIO_ECHO3,  2) / 100)

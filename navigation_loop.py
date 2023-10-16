@@ -376,6 +376,7 @@ class RobotSystem():
             self.gyro.activate()
 
         self.manager_mp = manager_mp
+        manager_mp.ready = True
 
     def imu_update(self):
         self.gyro.read_ang()

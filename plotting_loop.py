@@ -67,6 +67,10 @@ def plotting_loop(manager_mp: MPManager):
     other_robot_car = []
 
     while True:
+        if not (manager_mp.ready):
+            time.sleep(0.5)
+            continue
+        
         time.sleep(1)
 
         poses_local_unstable = manager_mp.poses[:]
