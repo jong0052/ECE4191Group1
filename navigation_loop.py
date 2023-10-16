@@ -506,9 +506,9 @@ class RobotSystem():
         
             rfid_out = ""
             for i in range(0, 120, 1):
+                print("Loading Package, put tag in front of scanner.")
                 rfid_out = readTag()
 
-                print("Loading Package, put tag in front of scanner.")
                 # Cry, 1 2 3 and 0 1 2.
                 if (rfid_out.startsWith("1")):
                     print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")
