@@ -6,7 +6,7 @@ import math
 # Define the Class Serializer GT
 class Serializer_GT:
     def __init__(self):
-        self.ser = serial.Serial('COM11', 115200, timeout=0.1)
+        self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=0.1)
         self.ser.reset_input_buffer()
         self.ang_data = AngleData()
         self.sensor_data = SensorData()
@@ -15,6 +15,10 @@ class Serializer_GT:
     def activate(self):
         encoded_string = f"[201]".encode("utf-8")
         self.ser.write(encoded_string)
+        print("Callibrate for 50 seconds!")
+        for i in range (50, 0, -1):
+            print(f"Waiting: {i}")
+            time.sleep(1)
     
     # Terminate The pySerial Connection
     def close(self):
@@ -26,7 +30,7 @@ class Serializer_GT:
             self.ser.write(encoded_string)
             line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
             print("Serial read: " + str(line))            
-            time.sleep(0.1)
+            time.sleep(0.01)
     
     def read_tof(self):
         for i in range(0,10,1):
@@ -34,7 +38,7 @@ class Serializer_GT:
             self.ser.write(encoded_string)
             line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
             print("Serial read: " + str(line))
-            time.sleep(0.1)
+            time.sleep(0.01)
         # print("serial write: " + str(self.encode_string()))
 
     def decode_angle(self,input_string):

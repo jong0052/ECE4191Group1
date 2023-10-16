@@ -17,6 +17,8 @@ from utils.cubic_spline_planner import *
 from multiprocessing import Value
 from multiprocessing.managers import ListProxy
 
+from serial_loop_gyro_tof import Serializer_GT
+
 class DiffDriveRobot:
 
     def __init__(self, inertia=5, drag=0.2, wheel_radius=0.055, wheel_sep=0.15,x=0,y=0,th=0):
@@ -369,7 +371,19 @@ class RobotSystem():
         self.tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
         self.map = Map(1.2, 1.2, obstacles)
 
+        if not (simulation):
+            self.gyro = Serializer_GT()
+            self.gyro.activate()
+
         self.manager_mp = manager_mp
+
+    def imu_update(self):
+        self.gyro.read_ang()
+        angle_data = self.gyro.ang_data
+        print(f"Robot Thinks: {self.robot.th}, IMU: {angle_data.yaw}")
+        
+        self.robot.th = angle_data.yaw
+
 
     def drive_to_goal(self, goal: Goal = Goal(), reverse = False, collision = True) -> bool:
                 
@@ -460,6 +474,8 @@ class RobotSystem():
             self.manager_mp.goal_data.extend(goal.to_list())
             
             # print("loop 1")
+            if not simulation:
+                self.imu_update()
 
         # Done.
 
