@@ -504,13 +504,12 @@ class RobotSystem():
         if not simulation:
             self.servo.moving()
         
-            rfid_scanned = False 
             rfid_out = ""
             for i in range(0, 120, 1):
                 rfid_out = readTag()
 
                 # Cry, 1 2 3 and 0 1 2.
-                if (rfid_out == "1"):
+                if (rfid_out.startsWith("1")):
                     print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")
                     time.sleep(3)
                     return 0
