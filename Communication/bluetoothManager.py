@@ -72,7 +72,7 @@ def bluetooth_client(mp_manager: MPManager):
 
         other_data = BluetoothData()
         other_data.from_json(other_data_json)
-        print(other_data.to_string())
+        # print(other_data.to_string())
 
         mp_manager.other_robot_state = other_data.robot_state
         mp_manager.other_robot_pose[:] = []
@@ -102,7 +102,7 @@ def bluetooth_server(mp_manager: MPManager):
 
                 other_data = BluetoothData()
                 other_data.from_json(other_data_json)
-                print(other_data.to_string())
+                # print(other_data.to_string())
 
                 our_data = BluetoothData(mp_manager.robot_state, mp_manager.robot_data, mp_manager.robot_goal)
                 our_json_data = our_data.to_json()
