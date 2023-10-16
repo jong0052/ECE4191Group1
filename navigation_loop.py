@@ -382,11 +382,10 @@ class RobotSystem():
         angle_data = self.gyro.ang_data
         print(f"Robot Thinks: {self.robot.th}, IMU: {angle_data.yaw}")
         
-        self.robot.th = angle_data.yaw
+        self.robot.th = angle_data.yaw / 360 * 2 * math.pi
 
 
     def drive_to_goal(self, goal: Goal = Goal(), reverse = False, collision = True) -> bool:
-                
         final_goal = goal.to_nparray()
         print(f"New Goal: {final_goal}")
         start = np.array([self.robot.x, self.robot.y, self.robot.th])
@@ -422,8 +421,8 @@ class RobotSystem():
 
             # Simulate robot motion - send duty cycle command to controller
             if (not simulation):
-                wl = ((self.manager_mp.current_wl/ 60)* 2*math.pi)
-                wr = ((self.manager_mp.current_wr/ 60)* 2*math.pi)
+                wl = ((self.manager_mp.current_wl / 60)* 2*math.pi)
+                wr = ((self.manager_mp.current_wr / 60)* 2*math.pi)
                 x,y,th = self.robot.pose_update(last_duty_cycle_l,last_duty_cycle_r, wl, wr)
             else:
                 x,y,th = self.robot.pose_update(last_duty_cycle_l,last_duty_cycle_r)
