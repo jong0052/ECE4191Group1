@@ -8,7 +8,7 @@ from multiprocessing import *
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from utils.mpManager import MPManager
 
-port = 55
+port = 1
 
 class BluetoothData():
     def __init__(self,
@@ -19,7 +19,11 @@ class BluetoothData():
         self.robot_state = robot_state # State of robot
         self.robot_pose = [0, 0, 0]
         for i in range(0, 2):
-            self.robot_pose[i] = robot_pose[i] 
+            if len(robot_pose) > i:
+                self.robot_pose[i] = robot_pose[i]
+            else:
+                self.robot_pose[i] = i
+                
         self.robot_goal = robot_goal # Package ID (0 = A, 1 = B, 2 = C)
 
     def to_json(self):
@@ -50,8 +54,8 @@ def get_mac_address() -> str:
 # Client: Acts as the sender.
 def bluetooth_client(mp_manager: MPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-    host_address = "d8:3a:dd:21:87:5e" #Fill in host mac address here
-    # address_other = "D8:3A:DD:21:80:55"
+    # host_address = "d8:3a:dd:21:87:5e" # Robot 33
+    host_address = "d8:3a:dd:21:86:3c" # Robot 1b
     s.connect((host_address,port))
     while(1):
         our_data = BluetoothData(mp_manager.robot_state, mp_manager.robot_data, mp_manager.robot_goal)
