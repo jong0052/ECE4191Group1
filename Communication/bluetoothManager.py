@@ -18,7 +18,7 @@ class BluetoothData():
                  ):
         self.robot_state = robot_state # State of robot
         self.robot_pose = [0, 0, 0]
-        for i in range(0, 2):
+        for i in range(0, 3):
             if len(robot_pose) > i:
                 self.robot_pose[i] = robot_pose[i]
             else:
@@ -60,8 +60,10 @@ def bluetooth_client(mp_manager: MPManager):
     host_address = "d8:3a:dd:21:86:3c" # Robot 1b
     s.connect((host_address,port))
     while(1):
+        print("Client:")
         our_data = BluetoothData(mp_manager.robot_state, mp_manager.robot_data, mp_manager.robot_goal)
         our_json_data = our_data.to_json()
+        print("I send: ", our_json_data)
 
         s.send(bytes(our_json_data,'UTF-8'))
 
@@ -94,6 +96,7 @@ def bluetooth_server(mp_manager: MPManager):
         try:
             client, address = s.accept()
             while 1:
+                print("Server:")
                 other_data_json = client.recv(1024)
                 print('I received: ', other_data_json)
 
@@ -105,6 +108,7 @@ def bluetooth_server(mp_manager: MPManager):
                 our_json_data = our_data.to_json()
             
                 client.send(bytes(our_json_data,'UTF-8'))
+                print("I send: ", our_json_data)
                 
                 mp_manager.other_robot_state = other_data.robot_state
                 mp_manager.other_robot_pose[:] = []
