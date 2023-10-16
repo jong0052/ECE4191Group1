@@ -386,6 +386,7 @@ class RobotSystem():
             yaw_angle = yaw_angle - 360
         
         output_angle = (yaw_angle) / 360 * 2 * math.pi
+        self.robot.th = output_angle
 
 
     def drive_to_goal(self, goal: Goal = Goal(), reverse = False, collision = True) -> bool:
