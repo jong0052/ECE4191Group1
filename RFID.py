@@ -18,6 +18,7 @@ if __name__ == "__main__":
     while (1):
         out = readTag()
 
+        print("Loading Package, put tag in front of scanner.")
          # Cry, 1 2 3 and 0 1 2.
         if (out.startswith("1")):
             print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")

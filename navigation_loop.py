@@ -508,6 +508,7 @@ class RobotSystem():
             for i in range(0, 120, 1):
                 rfid_out = readTag()
 
+                print("Loading Package, put tag in front of scanner.")
                 # Cry, 1 2 3 and 0 1 2.
                 if (rfid_out.startsWith("1")):
                     print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")
@@ -521,8 +522,6 @@ class RobotSystem():
                     print("Package Found (3 -> 2) (Right). Running in 3 Seconds.")
                     time.sleep(3)
                     return 2
-
-                print("Loading Package, put tag in front of scanner.")
                 time.sleep(0.5) 
         
         print("Load Package timed out. Default to 1 (Middle).")
