@@ -8,6 +8,7 @@ from utils.mpManager import MPManager
 from navigation_loop import *
 from plotting_loop import *
 from utils.const import *
+from Communication.bluetoothManager import *
 import os
 
 if (not simulation):
@@ -43,6 +44,12 @@ def main():
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(manager_mp,))
+        
+    if bluetooth:
+        if (host):
+            procHost = Process(target=bluetooth_server,args=(bluetooth_manager,))
+        else:
+            procClient = Process(target=bluetooth_client,args=(bluetooth_manager,))
         # procUS = Process(target=usLoop, args=(manager_mp,))
 
     if plotting:
@@ -52,6 +59,12 @@ def main():
     procOtherRobot.start()
     if not simulation:
         proc2.start()
+
+    if bluetooth:
+        if (host):
+            procHost.start()
+        else:
+            procClient.start()
         # procUS.start()
     if plotting:
         proc3.start()
@@ -61,6 +74,11 @@ def main():
     if not simulation:
         proc2.join()
         # procUS.join()
+    if bluetooth:
+        if (host):
+            procHost.join()
+        else:
+            procClient.join()
     if plotting:
         proc3.join()
 
