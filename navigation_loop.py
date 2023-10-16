@@ -676,3 +676,30 @@ def navigation_loop(manager_mp: MPManager):
         system.drive_to_goal(loading_zone, True, False)
         system.set_state(4)
         goal_number = system.load_package()
+
+def state_test(manager_mp: MPManager):
+    system = RobotSystem(manager_mp, [0.2,-0.45, math.pi/2])
+
+    time.sleep(10)
+    init_skip = True
+    while (True):
+        if (not init_skip):
+            # system.drive_to_goal(start_goal, False, False)
+            time.sleep(5)
+            system.set_state(1)
+            system.wait_for_state([3, 4, 5])
+        else:
+            init_skip = False
+    
+        system.set_state(2)
+        time.sleep(15)
+        system.wait_for_state([1,5])
+
+        time.sleep(5)
+        system.set_state(3)
+        system.wait_for_state([2,5])
+
+        time.sleep(5)
+        system.set_state(4)
+
+        time.sleep(5)
