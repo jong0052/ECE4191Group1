@@ -14,6 +14,8 @@ import random
 from utils.const import *
 from utils.cubic_spline_planner import *
 
+from ServoNew import Servo
+
 from multiprocessing import Value
 from multiprocessing.managers import ListProxy
 
@@ -371,7 +373,9 @@ class RobotSystem():
         self.tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
         self.map = Map(1.2, 1.2, obstacles)
 
-        self.gyro = Serializer_GT()
+        if not simulation:
+            self.gyro = Serializer_GT()
+            self.servo = Servo()
 
         self.manager_mp = manager_mp
         # manager_mp.ready = True
@@ -489,10 +493,12 @@ class RobotSystem():
         return True
     
     def unload_package(self):
+        self.servo.unload()
         time.sleep(3)
         return
 
     def load_package(self):
+        self.servo.moving()
         time.sleep(3)
         return random.randint(0, 2)
     
@@ -512,6 +518,7 @@ class RobotSystem():
     def localization(self):
         # Step 1: Align to Wall
         # Step 2: Localization using TOF sensors
+        print("Performing Localization.")
         pass
 
 def simulate_other_robot_loop(manager_mp : MPManager):

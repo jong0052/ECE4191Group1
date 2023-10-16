@@ -40,23 +40,23 @@ def main():
     manager_mp = manager.MPManager()
     
     proc1 = Process(target=navigation_loop,args=(manager_mp,))
-    procOtherRobot = Process(target=simulate_other_robot_loop,args=(manager_mp,))
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(manager_mp,))
         
     if bluetooth:
         if (host):
-            procHost = Process(target=bluetooth_server,args=(bluetooth_manager,))
+            procHost = Process(target=bluetooth_server,args=(manager_mp,))
         else:
-            procClient = Process(target=bluetooth_client,args=(bluetooth_manager,))
+            procClient = Process(target=bluetooth_client,args=(manager_mp,))
         # procUS = Process(target=usLoop, args=(manager_mp,))
+    else:    
+        procOtherRobot = Process(target=simulate_other_robot_loop,args=(manager_mp,))
 
     if plotting:
         proc3 = Process(target=plotting_loop, args=(manager_mp,))
 
     proc1.start()
-    procOtherRobot.start()
     if not simulation:
         proc2.start()
 
@@ -66,11 +66,13 @@ def main():
         else:
             procClient.start()
         # procUS.start()
+    else:    
+        procOtherRobot.start()
+
     if plotting:
         proc3.start()
 
     proc1.join()
-    procOtherRobot.join()   
     if not simulation:
         proc2.join()
         # procUS.join()
@@ -79,6 +81,9 @@ def main():
             procHost.join()
         else:
             procClient.join()
+    else:    
+        procOtherRobot.join()   
+
     if plotting:
         proc3.join()
 
