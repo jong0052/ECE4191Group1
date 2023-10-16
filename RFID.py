@@ -9,7 +9,7 @@ def readTag() -> str:
         id, text = reader.read()
         print(text)
         
-    finally:
+    except KeyboardInterrupt:
         GPIO.cleanup()
     
     return text

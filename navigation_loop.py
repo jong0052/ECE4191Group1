@@ -501,9 +501,8 @@ class RobotSystem():
         return
 
     def load_package(self):
+        self.servo.moving()
         if not simulation:
-            self.servo.moving()
-        
             rfid_out = ""
             for i in range(0, 120, 1):
                 print("Loading Package, put tag in front of scanner.")
@@ -513,19 +512,23 @@ class RobotSystem():
                 if (rfid_out.startswith("1")):
                     print("Package Found (1 -> 0) (Left). Running in 3 Seconds.")
                     time.sleep(3)
+                    # self.servo.moving()
                     return 0
                 elif (rfid_out.startswith("2")):
                     print("Package Found (2 -> 1) (Middle). Running in 3 Seconds.")
                     time.sleep(3)
+                    # self.servo.moving()
                     return 1
                 elif (rfid_out.startswith("3")):
                     print("Package Found (3 -> 2) (Right). Running in 3 Seconds.")
                     time.sleep(3)
+                    # self.servo.moving()
                     return 2
                 time.sleep(0.5) 
         
         print("Load Package timed out. Default to 1 (Middle).")
         time.sleep(3)
+        # self.servo.moving()
         return 0
     
     def wait_for_state(self, required_state = []):
