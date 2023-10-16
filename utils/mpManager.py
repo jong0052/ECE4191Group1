@@ -37,6 +37,6 @@ class MPManager:
         self.robot_state = 0
         self.robot_goal = 0
 
-        self.other_robot_state = 5
+        self.other_robot_state = 0
         self.other_robot_pose = manager.list()
         self.other_robot_goal = 0

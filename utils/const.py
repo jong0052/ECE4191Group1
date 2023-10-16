@@ -7,7 +7,7 @@ plotting = True
 simulation = False
 
 bluetooth = True
-host = False
+host = True
 
 CAR_W = 0.238  # width of car
 CAR_LF = 0.12  # distance from rear to vehicle front end

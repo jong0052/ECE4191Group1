@@ -8,7 +8,7 @@ from multiprocessing import *
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from utils.mpManager import MPManager
 
-port = 1
+port = 4
 
 class BluetoothData():
     def __init__(self,
@@ -46,7 +46,8 @@ class BluetoothData():
         return f"State: {self.robot_state}\nPose: {self.robot_pose}\nGoal: {self.robot_goal}"
 
 def get_mac_address() -> str:
-    return "D8:3A:DD:21:86:3C" # Pi B
+    # return "D8:3A:DD:21:86:3C" # Pi B
+    return "D8:3A:DD:21:86:5D" # Pi A
     
     address = ':'.join(['{:02x}'.format((uuid.getnode() >> ele) & 0xff)
     for ele in range(0,8*6,8)][::-1])
