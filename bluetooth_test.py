@@ -16,4 +16,6 @@ if __name__ == "__main__":
     manager = BaseManager()
     manager.start()
     manager_mp = manager.MPManager()
-    bluetooth_server(manager_mp)
+
+    bluetooth_client(manager_mp)
+    # bluetooth_server(manager_mp)
