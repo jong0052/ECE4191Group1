@@ -525,7 +525,7 @@ void loop() {
 // 320: Change stationary
 // 321: Reset Angle
 // ----------------------------------------------------------------------------------------
-void print_serial( float []);
+void print_serial(float [], int);
 void loop1(){
   // Checks fow which code
   if (Serial.available() > 0) {
