@@ -29,7 +29,8 @@ class Serializer_GT:
             encoded_string = f"[221]".encode("utf-8")
             self.ser.write(encoded_string)
             line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-            print("Serial read: " + str(line))            
+            print("Serial read: " + str(line))     
+            self.decode_angle(line)       
             time.sleep(0.01)
     
     def read_tof(self):
@@ -38,6 +39,7 @@ class Serializer_GT:
             self.ser.write(encoded_string)
             line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
             print("Serial read: " + str(line))
+            self.decode_sensor(line)
             time.sleep(0.01)
         # print("serial write: " + str(self.encode_string()))
 
@@ -56,6 +58,7 @@ class Serializer_GT:
             return False
         
         self.ang_data.update(yaw_ang, lin_v)
+        print(f"Updated Angle: {self.ang_data.yaw}")
 
         return True
 
