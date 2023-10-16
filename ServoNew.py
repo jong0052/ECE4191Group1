@@ -19,19 +19,19 @@ class Servo:
 
         try:
             
-            print("loop")
+            print("open")
             # Rotate the servo in one direction (0 degrees)
             self.pwm.ChangeDutyCycle(8)
             time.sleep(1)
             self.pwm.ChangeDutyCycle(0)
-            time.sleep(4)
+            time.sleep(2)
 
-            print("2")
+            print("close")
             # Rotate the servo in the other direction (180 degrees)
             self.pwm.ChangeDutyCycle(4)
             time.sleep(2)
             self.pwm.ChangeDutyCycle(0)
-            time.sleep(4)
+            time.sleep(2)
 
         except KeyboardInterrupt:
             GPIO.cleanup()
@@ -39,7 +39,7 @@ class Servo:
 
         # Stop the PWM and cleanup
         self.pwm.stop()
-        GPIO.cleanup()
+        # GPIO.cleanup()
         
     def moving(self):
         self.pwm.start(7.5)
