@@ -676,9 +676,9 @@ def navigation_loop(manager_mp: MPManager):
         # - Wait for Other Team to be in the Field (State 2)
         # - Go to State 4
         system.drive_to_goal(start_goal, True, False)
+        system.localization()
         system.set_state(3)
         system.wait_for_state([2,5])
-        system.localization()
 
         # State 4: Loading
         # - Get package loaded
