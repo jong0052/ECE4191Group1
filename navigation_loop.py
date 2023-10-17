@@ -654,6 +654,7 @@ def navigation_loop(manager_mp: MPManager):
         if (not init_skip):
             system.drive_to_goal(start_goal, False, False)
             system.set_state(1)
+            system.localization(False)
             system.wait_for_state([3, 4, 5])
         else:
             init_skip = False
