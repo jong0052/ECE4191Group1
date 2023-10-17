@@ -544,11 +544,20 @@ class RobotSystem():
         self.manager_mp.robot_state = state
         print(f"Set State to {state}")
 
-    def localization(self):
+    def localization(self, init = False):
         # Step 1: Align to Wall
         # Step 2: Localization using TOF sensors
-        print("Performing Localization...?")
-        pass
+        print("Performing Localization.")
+        self.gyro.read_localization(init)
+        x = self.gyro.loc_data.x
+        y = self.gyro.loc_data.y
+        
+        if (abs(x) > 3 or abs(y) > 3):
+            print(f"Error in localization, do not trust. ({x},{y}).")
+        else:
+            print(f"Updated Robot Position. ({self.robot.x}, {self.robot.y}) -> ({x},{y}).")
+            self.robot.x = x
+            self.robot.y = y
 
 def simulate_other_robot_loop(manager_mp : MPManager):
     manager_mp.other_robot_state = 0
@@ -625,9 +634,11 @@ def navigation_loop(manager_mp: MPManager):
     # - Wait for Other Team to get set to State 1.
     # - To State 2 if travelling first in field.
     # system.drive_to_goal(loading_zone)
+    system.localization(True)
     system.drive_to_goal(init_goal) # just so we have map
     goal_number = system.load_package()
     system.drive_to_goal(start_goal)
+    system.localization(False)
     
     init_skip = True
 
