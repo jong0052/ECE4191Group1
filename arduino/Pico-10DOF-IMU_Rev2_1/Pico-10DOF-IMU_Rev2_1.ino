@@ -275,7 +275,7 @@ void Initialize_hq_sensors()
       //Serial.println(i);
       while (1);
     }
-    sensors_hq[i].setAddress(0x27 + i);
+    sensors_hq[i].setAddress(0x31 + i);
     sensors_hq[i].setDistanceMode(VL53L1X::Long);
     sensors_hq[i].setMeasurementTimingBudget(50000);
     sensors_hq[i].startContinuous(50);
@@ -285,31 +285,116 @@ void Initialize_hq_sensors()
 //====================================================================
 // Simple Sync read sensors.
 //====================================================================
+int sens1_bias[8] = {-10, -15, -20, -10, 0, 0, 0, 0};
+int sens2_bias[8] = {-30, -10, -15, -30, -10, -15, -15, -30};
+//int sens2_bias2[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 void read_sensors() {
   // First use simple function
   uint16_t ranges_mm[COUNT_SENSORS];
   for (int i = 0; i < COUNT_SENSORS; i++) {
     ranges_mm[i] = sensors[i].psensor->readRange();
-    delay(20);
+    delay(60);
   } 
-
+  
   for (int i = 0; i < COUNT_SENSORS; i++) {
-    if (ranges_mm[i] < 1200){
-      sensor_l0x[i] = ranges_mm[i];
+    if (ranges_mm[i] < 40){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[0];
+    }  
+    else if (ranges_mm[i] < 100){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[1];
+    }  
+    else if (ranges_mm[i] < 150){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[2];
+    }  
+    else if (ranges_mm[i] < 250){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[3];
+    }  
+    else if (ranges_mm[i] < 350){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[4];
+    }  
+    else if (ranges_mm[i] < 500){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[5];
+    }  
+    else if (ranges_mm[i] < 800){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[6];
+    }  
+    else if (ranges_mm[i] < 1200){
+      sensor_l0x[i] = ranges_mm[i] - sens1_bias[7];
     }  
     else{
       sensor_l0x[i] = 4040;
     }
   }
+  
   for (uint8_t i = 0; i < hq_sensorCount; i++)
   {
     if (sensors_hq[i].timeoutOccurred()) { 
       sensor_l1x[i] = 4040;
     }else {
-      sensor_l1x[i] = sensors_hq[i].read();
+      int sensor_l1x_raw = sensors_hq[i].read();
+      if (i == 0){
+       if (sensor_l1x_raw > 490 and sensor_l1x_raw < 512){
+        sensor_l1x[i] = sensor_l1x_raw - 0;
+       }
+       else {
+       sensor_l1x[i] = sensor_l1x_raw - 0;
+       }
+      }
+      // Sensor 2
+      if (i == 1){
+        if (sensor_l1x_raw < 40){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[0];
+         }
+         else if (sensor_l1x_raw < 115){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[1];
+         }
+         else if (sensor_l1x_raw < 135){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[2];
+         }
+         else if (sensor_l1x_raw < 230){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[3];
+         }
+         else if (sensor_l1x_raw < 345){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[4];
+         }
+         else if (sensor_l1x_raw < 485){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[5];
+         }
+         else if (sensor_l1x_raw < 980){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[6];
+         }
+         else if (sensor_l1x_raw < 1200){
+          sensor_l1x[i] = sensor_l1x_raw - sens2_bias[7];
+         }
+         else if (sensor_l1x_raw >= 1200){
+            sensor_l1x[i] = 4040;
+         }
+      }
+       
     }
+    delay(30);
   }
   
+}
+
+float read_sensors_i_1(int i){
+   delay(300);
+   uint16_t ranges_mm = sensors[i].psensor->readRange();
+   float output = ranges_mm;
+   return output;
+}
+
+float read_sensors_i_2(int i){
+   delay(300);
+   float output;
+   int sensor_l1x_raw;
+   if (sensors_hq[i].timeoutOccurred()) { 
+      output = 4040;
+    }else {
+      sensor_l1x_raw = sensors_hq[i].read();
+    }
+   output = sensor_l1x_raw;
+   return output;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 //--------------------------------------Set Up-------------------------------------------//
@@ -524,10 +609,14 @@ void loop() {
 // [Write Functions]
 // 320: Change stationary
 // 321: Reset Angle
+// 322: Localise
+// 323: Localise_start
 // ----------------------------------------------------------------------------------------
-void print_serial( float []);
+void print_serial(float [], int);
+void localise_centre(float, float );
 void loop1(){
   // Checks fow which code
+  delay(50);
   if (Serial.available() > 0) {
       String data = Serial.readStringUntil('\n');
       readCommand(data, serial_code, serial_data);
@@ -550,7 +639,7 @@ void loop1(){
         for (int i = 0; i < COUNT_SENSORS; i++) {
           print_sens[i] = sensor_l0x[i];
         }
-         for (int i = 0; i < hq_sensorCount; i++) {
+        for (int i = 0; i < hq_sensorCount; i++) {
           print_sens[i + COUNT_SENSORS] = sensor_l1x[i];
         }
         if(Serial.availableForWrite()>0){
@@ -567,6 +656,37 @@ void loop1(){
      else if (serial_code == 321){
         float new_offset = serial_data - current_yaw;
         yaw_offset_main = yaw_offset_main - new_offset;
+     }
+     else if (serial_code == 322){
+        float x;
+        float y;
+        float car_l = 240;
+        float car_w = 195;
+        float x1, x2;
+        y = 600 - (read_sensors_i_1(0)/3 + read_sensors_i_1(1)/3 + read_sensors_i_1(2)/3) - (car_l/2);
+        x1 = -600 + 0.6*read_sensors_i_1(3)+0.4*read_sensors_i_2(1) +  (car_w/2);
+        x2 = 600 - 0.6*read_sensors_i_1(5)-0.4*read_sensors_i_2(0) -  (car_w/2);
+        x = (x1 + x2)/2;
+        Serial.print("Pico Location: [");
+        Serial.print(x);
+        Serial.print(", ");
+        Serial.print(y);
+        Serial.println("]");
+     }
+     else if (serial_code == 323){
+        float x;
+        float y;
+        float car_l = 240;
+        float car_w = 195;
+        
+        y = -600 + car_l/2 + read_sensors_i_1(4);
+        x = 600 - 0.6*read_sensors_i_1(5)-0.4*read_sensors_i_2(0) -  (car_w/2);
+        //x = (x1 + x2)/2;
+        Serial.print("Pico Location: [");
+        Serial.print(x);
+        Serial.print(", ");
+        Serial.print(y);
+        Serial.println("]");
      }
   }
 }
