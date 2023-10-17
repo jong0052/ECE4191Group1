@@ -3,7 +3,7 @@ import math
 
 # obstacles = [Circle(0,0.2,0.15)]
 obstacles = []
-plotting = True
+plotting = False
 simulation = False
 
 bluetooth = True

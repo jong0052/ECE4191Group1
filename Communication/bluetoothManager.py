@@ -88,12 +88,11 @@ def bluetooth_client(mp_manager: MPManager):
 def bluetooth_server(mp_manager: MPManager):
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     host_address = get_mac_address() #Fill in host mac address here
-    print(f"Host Address: {host_address}")
-    s.bind((host_address,port))
-
-    s.listen(1)
-
     while True:
+        print(f"Host Address: {host_address}")
+        s.bind((host_address,port))
+
+        s.listen(1)
         try:
             client, address = s.accept()
             while 1:
@@ -116,6 +115,7 @@ def bluetooth_server(mp_manager: MPManager):
                 mp_manager.other_robot_pose.extend(other_data.robot_pose)
                 mp_manager.other_robot_goal = other_data.robot_goal
         except:
+            mp_manager.other_robot_state = 5
             print("Closing socket")
             client.close()
             s.close()
