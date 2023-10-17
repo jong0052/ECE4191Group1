@@ -552,7 +552,7 @@ class RobotSystem():
         x = self.gyro.loc_data.x
         y = self.gyro.loc_data.y
         
-        if (abs(x) > 3 or abs(y) > 3):
+        if (abs(x) > 0.7 or abs(y) > 0.7):
             print(f"Error in localization, do not trust. ({x},{y}).")
         else:
             print(f"Updated Robot Position. ({self.robot.x}, {self.robot.y}) -> ({x},{y}).")
@@ -635,7 +635,7 @@ def navigation_loop(manager_mp: MPManager):
     # - To State 2 if travelling first in field.
     # system.drive_to_goal(loading_zone)
     system.localization(True)
-    system.drive_to_goal(init_goal) # just so we have map
+    # system.drive_to_goal(init_goal) # just so we have map
     goal_number = system.load_package()
     system.drive_to_goal(start_goal)
     system.localization(False)
