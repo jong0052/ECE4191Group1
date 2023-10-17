@@ -6,7 +6,7 @@ obstacles = []
 plotting = True
 simulation = False
 
-bluetooth = False
+bluetooth = True
 host = True
 
 CAR_W = 0.238  # width of car
