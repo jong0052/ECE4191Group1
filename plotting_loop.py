@@ -82,30 +82,30 @@ def plotting_loop(manager_mp: MPManager):
 
         if (len(poses_local_unstable) > 0):
             poses_local= poses_local_unstable
-            print("got pose")
+            # print("got pose")
 
         if (len(robot_data_local_unstable) > 0):
             robot_data_local = robot_data_local_unstable
-            print("got robot")
+            # print("got robot")
 
         if (len(obstacle_data_local_unstable) > 0):
             obstacle_data_local = obstacle_data_local_unstable
-            print("got obstacle")
+            # print("got obstacle")
 
         if (len(plan_local_unstable) > 0):
             plan_local = plan_local_unstable
-            print("got plan")
+            # print("got plan")
             
         if (len(goal_data_local_unstable) > 0):
             goal_data_local = goal_data_local_unstable
-            print("got goal data")
+            # print("got goal data")
 
         if (len(other_robot_car_unstable) > 0):
             other_robot_car = other_robot_car_unstable
-            print("got other robot car")
+            # print("got other robot car")
 
         if (not(len(poses_local) > 0 and len(robot_data_local) > 0 and len(plan_local) > 0 and len(goal_data_local) > 0)):
-            print("Failed to plot, empty data...")
+            # print("Failed to plot, empty data...")
             continue
 
         # Plot robot data

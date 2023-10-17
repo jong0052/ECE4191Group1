@@ -46,7 +46,7 @@ class Serializer_GT:
             encoded_string = f"[322]".encode("utf-8")
             self.ser.write(encoded_string)
             line = self.ser.readline().decode('utf-8', errors="ignore").rstrip()
-            # print("Serial read: " + str(line))
+            print("Serial read: " + str(line))
             self.decode_localize(line)
             time.sleep(3)
         # print("serial write: " + str(self.encode_string()))
