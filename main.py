@@ -39,7 +39,7 @@ def main():
     manager.start()
     manager_mp = manager.MPManager()
     
-    proc1 = Process(target=state_test,args=(manager_mp,))
+    proc1 = Process(target=navigation_loop,args=(manager_mp,))
 
     if not simulation:
         proc2 = Process(target=serializer_loop, args=(manager_mp,))
