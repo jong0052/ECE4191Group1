@@ -629,7 +629,7 @@ def navigation_loop(manager_mp: MPManager):
     parcel_B_goal = Goal(0,0.4, math.pi/2)
     parcel_C_goal_init = Goal(0.4, 0.3, math.pi/2)
     parcel_C_goal = Goal(0.4, 0.4, math.pi/2)
-    loading_zone = Goal(0, -0.4, math.pi/2)
+    loading_zone = Goal(0, -0.35, math.pi/2)
 
     system = RobotSystem(manager_mp, [0.2,-0.45, math.pi/2])
 
