@@ -38,7 +38,7 @@ class Servo:
             
 
         # Stop the PWM and cleanup
-        self.pwm.stop()
+        # self.pwm.stop()
         # GPIO.cleanup()
         
     def moving(self):
