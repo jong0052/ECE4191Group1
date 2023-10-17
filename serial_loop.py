@@ -29,7 +29,9 @@ class Serializer:
             end_idx = input_string.index("]")
             wl_current, wr_current, wl_goal, wr_goal = [float(num) for num in input_string[start_idx:end_idx].split(',')]
         except ValueError:
-            raise ValueError("Invalid input format")
+            # raise ValueError("Invalid input format")
+            print(f"ERROR! Invalid decode string? String: {input_string}")
+            return
 
         # Creating a SerialData object with the extracted numbers
         self.data.update(wl_current=wl_current, wr_current=wr_current, wl_goal=wl_goal, wr_goal=wr_goal)

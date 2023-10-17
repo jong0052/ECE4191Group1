@@ -676,7 +676,7 @@ def navigation_loop(manager_mp: MPManager):
             system.drive_to_goal(parcel_C_goal, False, False)
 
         system.unload_package()
-        system.wait_for_state([1,5])
+        # system.wait_for_state([1,5])
         
         # State 3: Returned
         # - Wait for Other Team to be in the Field (State 2)
