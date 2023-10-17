@@ -709,7 +709,7 @@ def state_test(manager_mp: MPManager):
             init_skip = False
     
         system.set_state(2)
-        time.sleep(15)
+        time.sleep(5)
         system.wait_for_state([1,5])
 
         time.sleep(5)
