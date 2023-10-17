@@ -140,12 +140,12 @@ class TentaclePlanner:
         self.tentacles = []
         for v in range(0,11, 1):
             for w in range(-20,21, 1):
-                self.tentacles.append((v/200, w/20))
+                self.tentacles.append((v/150, w/20))
 
         self.reverse_tentacles = []
         for v in range(0,11, 1):
             for w in range(-20,21, 1):
-                self.reverse_tentacles.append((-v/200, w/20))
+                self.reverse_tentacles.append((-v/150, w/20))
             # print(self.tentacles)
   
         self.alpha = alpha
