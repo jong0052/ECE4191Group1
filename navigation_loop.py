@@ -412,8 +412,9 @@ class RobotSystem():
 
         last_duty_cycle_l = 0
         last_duty_cycle_r = 0
+        stopped_attempts = 0
 
-        while (not goal.check_reach_goal(self.robot.x, self.robot.y, self.robot.th)):
+        while (not goal.check_reach_goal(self.robot.x, self.robot.y, self.robot.th) and stopped_attempts < 100):
             
             # Map Generation for obstacles
             self.map.update(self.robot.x, self.robot.y, self.robot.th)
@@ -421,6 +422,10 @@ class RobotSystem():
             temp_goal = plan[plan_index]
             tentacle,cost = self.tentaclePlanner.plan(temp_goal[0],temp_goal[1],temp_goal[2],self.robot.x,self.robot.y,self.robot.th, self.map.obstacle_dots, reverse, collision)
             v,w=tentacle
+
+            if (v == 0 and w == 0):
+                stopped_attempts = stopped_attempts + 1
+                print(f"Stopped. (Attempts: {stopped_attempts})")
 
             duty_cycle_l,duty_cycle_r,wl_goal,wr_goal = self.controller.drive(v,w,self.robot.wl,self.robot.wr)
             self.manager_mp.wl_goal_value = wl_goal
