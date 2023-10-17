@@ -6,8 +6,8 @@ obstacles = []
 plotting = True
 simulation = False
 
-bluetooth = False
-host = False
+bluetooth = True
+host = True
 
 CAR_W = 0.238  # width of car
 CAR_LF = 0.12  # distance from rear to vehicle front end
