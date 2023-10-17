@@ -140,12 +140,12 @@ class TentaclePlanner:
         self.tentacles = []
         for v in range(0,11, 1):
             for w in range(-20,21, 1):
-                self.tentacles.append((v/150, w/20))
+                self.tentacles.append((v/200, w/20))
 
         self.reverse_tentacles = []
         for v in range(0,11, 1):
             for w in range(-20,21, 1):
-                self.reverse_tentacles.append((-v/150, w/20))
+                self.reverse_tentacles.append((-v/200, w/20))
             # print(self.tentacles)
   
         self.alpha = alpha
@@ -341,7 +341,7 @@ class Map:
         return obstacle_list
 
 class Goal():
-    def __init__(self, x=0, y=0, theta=0, threshold=1e-2):
+    def __init__(self, x=0, y=0, theta=0, threshold=2e-2):
         self.x = x
         self.y = y
         self.theta = theta
@@ -624,11 +624,11 @@ def navigation_loop(manager_mp: MPManager):
     # init_goal = Goal(0.2, -0.4, math.pi/2)
     start_goal = Goal(0,0,math.pi/2)
     parcel_A_goal_init = Goal(-0.4,0.3, math.pi/2)
-    parcel_A_goal = Goal(-0.4,0.42, math.pi/2)
+    parcel_A_goal = Goal(-0.4,0.42, math.pi/2, 1e-2)
     parcel_B_goal_init = Goal(0,0.3, math.pi/2)
-    parcel_B_goal = Goal(0,0.42, math.pi/2)
+    parcel_B_goal = Goal(0,0.42, math.pi/2, 1e-2)
     parcel_C_goal_init = Goal(0.4, 0.3, math.pi/2)
-    parcel_C_goal = Goal(0.4, 0.42, math.pi/2)
+    parcel_C_goal = Goal(0.4, 0.42, math.pi/2, 1e-2)
     loading_zone = Goal(0, -0.35, math.pi/2)
 
     system = RobotSystem(manager_mp, [0.2,-0.45, math.pi/2])
