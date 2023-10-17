@@ -369,8 +369,8 @@ class Goal():
 
 class RobotSystem():
     def __init__(self, manager_mp: MPManager, pose = [0, 0, math.pi/2]):
-        self.robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0258, wheel_sep=0.22,x=pose[0],y=pose[1],th=pose[2])
-        self.controller = RobotController(Kp=1.0,Ki=0.01,wheel_radius=0.0258, wheel_sep=0.22)
+        self.robot = DiffDriveRobot(inertia=10, drag=2, wheel_radius=0.0268, wheel_sep=0.22,x=pose[0],y=pose[1],th=pose[2])
+        self.controller = RobotController(Kp=1.0,Ki=0.01,wheel_radius=0.0268, wheel_sep=0.22)
         self.tentaclePlanner = TentaclePlanner(dt=0.1,steps=10,alpha=1,beta=1e-9)
         self.map = Map(1.2, 1.2, obstacles)
 
@@ -622,7 +622,7 @@ def simulate_other_robot_loop(manager_mp : MPManager):
 
 def navigation_loop(manager_mp: MPManager):
     # init_goal = Goal(0.2, -0.4, math.pi/2)
-    start_goal = Goal(0,0,math.pi/2)
+    start_goal = Goal(0,0,math.pi/2, 1e-2)
     parcel_A_goal_init = Goal(-0.4,0.3, math.pi/2)
     parcel_A_goal = Goal(-0.4,0.42, math.pi/2, 1e-2)
     parcel_B_goal_init = Goal(0,0.3, math.pi/2)
