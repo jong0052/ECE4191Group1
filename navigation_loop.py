@@ -140,12 +140,12 @@ class TentaclePlanner:
         self.tentacles = []
         for v in range(0,11, 1):
             for w in range(-20,21, 1):
-                self.tentacles.append((v/200, w/20))
+                self.tentacles.append((v/100, w/20))
 
         self.reverse_tentacles = []
         for v in range(0,11, 1):
             for w in range(-20,21, 1):
-                self.reverse_tentacles.append((-v/200, w/20))
+                self.reverse_tentacles.append((-v/100, w/20))
             # print(self.tentacles)
   
         self.alpha = alpha
@@ -348,7 +348,7 @@ class Goal():
 
         self.threshold = threshold
         self.alpha = 3 # x y factor
-        self.beta = 0.5 # th factor
+        self.beta = 1 # th factor
     
     def check_reach_goal(self, robot_x, robot_y, robot_th):
         e_th = self.theta-robot_th
@@ -622,14 +622,14 @@ def simulate_other_robot_loop(manager_mp : MPManager):
 
 def navigation_loop(manager_mp: MPManager):
     # init_goal = Goal(0.2, -0.4, math.pi/2)
-    start_goal = Goal(0,0,math.pi/2, 1e-2)
-    parcel_A_goal_init = Goal(-0.4,0.3, math.pi/2)
-    parcel_A_goal = Goal(-0.4,0.42, math.pi/2, 1e-2)
-    parcel_B_goal_init = Goal(0,0.3, math.pi/2)
-    parcel_B_goal = Goal(0,0.42, math.pi/2, 1e-2)
-    parcel_C_goal_init = Goal(0.4, 0.3, math.pi/2)
-    parcel_C_goal = Goal(0.4, 0.42, math.pi/2, 1e-2)
-    loading_zone = Goal(0, -0.35, math.pi/2)
+    start_goal = Goal(0,0,math.pi/2, 2e-2)
+    parcel_A_goal_init = Goal(-0.4,0.3, math.pi/2,3e-2)
+    parcel_A_goal = Goal(-0.4,0.42, math.pi/2, 3e-2)
+    parcel_B_goal_init = Goal(0,0.3, math.pi/2,3e-2)
+    parcel_B_goal = Goal(0,0.42, math.pi/2, 3e-2)
+    parcel_C_goal_init = Goal(0.4, 0.3, math.pi/2,3e-2)
+    parcel_C_goal = Goal(0.4, 0.42, math.pi/2, 3e-2)
+    loading_zone = Goal(0, -0.35, math.pi/2, 3e-2)
 
     system = RobotSystem(manager_mp, [0.2,-0.45, math.pi/2])
 
