@@ -1,0 +1,3 @@
+1. Test the sensors to make sure at least all the bad sensors are working
+2. Make sure the IMU is working 
+3. 
