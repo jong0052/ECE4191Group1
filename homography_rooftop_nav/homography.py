@@ -49,6 +49,7 @@ else:
                 x, y, w, h = roi
                 dst = dst[y:y + h, x:x + w]
             else:
+                print(dist)
                 dst = cv2.undistort(img, cameraMatrix, dist, None, newCameraMatrix)
                 x, y, w, h = roi
                 dst = dst[y:y + h, x:x + w]
