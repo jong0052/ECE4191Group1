@@ -52,7 +52,7 @@ This is the working dirctory of 2024 Monash ECE4191 Integrated Design - Group 1.
 ### Wiring Diagrams
 ![Wiring Diagram 1](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/2_elec_diag_1.PNG )
 
-![Wiring Diagram 2](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/3_elec_diag_2.jpg)
+![Wiring Diagram 2](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/3_elec_diag_2.PNG)
 
 ![Wiring Diagram 3](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/4_elec_diag_3.PNG )
 
