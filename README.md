@@ -22,6 +22,7 @@ This is the working dirctory of 2024 Monash ECE4191 Integrated Design - Group 1.
 4. **Folder - legacy:** Folder contains legacy code that are not used in the final design.
     - **File - navigation_loop_rrtc.py:** Legacy code for the rrt planner which due to its unstability is abandoned for the final design. 
     - **File - Servo.py** Legacy code for servo that are not functioning as expected. 
+    - **File - ultrasonic_loop.py:** Legacy code for ultrasonic sensors which will no longer be used due to better sensors (ToF) are implemented. 
 
 5. **Folder - test_code:** Folder containing all the test code for each subsystems. 
     - **Folder -Testing Code Sensor:** Folder containing the testing code for I2C communication between sensors (IMU, ToF) and the microcontroller (RPi-pico).
@@ -34,5 +35,16 @@ This is the working dirctory of 2024 Monash ECE4191 Integrated Design - Group 1.
 
 7. **File - bluetooth_test_client.py, bluetooth_test_host.py:** the test client and host code which will be provided to the two parties in the arena to establish communication between two devices. 
 
-8. 
+8. **File - main.py:** the main environment for operating, controlling and observing the robot.
 
+9. **File - navigation_loop.py:** File containing the navigation module of the robot.
+
+10. **File - plotting_loop.py:** File containing the system-user interface of the robot, will plot out all where the system thinks the robot is. 
+
+11. **File - RFID.py:** File containing the hardware interface for detecting RFID tags, which will identify the location where the package need to be delivered to.
+
+12. **serial_loop_gyro_tof.py:** File containing the module which allows for serial communication between RPi and RPi-Pico.
+
+13. **serial_loop.py:** File containing the module which allows for serial communication between RPi and Arduino Nano.
+
+14. **ServoNew.py:"** File containing the Servo module which will allow for the closing and opening of the package delivery system.
