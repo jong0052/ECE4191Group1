@@ -43,8 +43,19 @@ This is the working dirctory of 2024 Monash ECE4191 Integrated Design - Group 1.
 
 11. **File - RFID.py:** File containing the hardware interface for detecting RFID tags, which will identify the location where the package need to be delivered to.
 
-12. **serial_loop_gyro_tof.py:** File containing the module which allows for serial communication between RPi and RPi-Pico.
+12. **File - serial_loop_gyro_tof.py:** File containing the module which allows for serial communication between RPi and RPi-Pico.
 
-13. **serial_loop.py:** File containing the module which allows for serial communication between RPi and Arduino Nano.
+13. **File - serial_loop.py:** File containing the module which allows for serial communication between RPi and Arduino Nano.
 
-14. **ServoNew.py:"** File containing the Servo module which will allow for the closing and opening of the package delivery system.
+14. **File - ServoNew.py:"** File containing the Servo module which will allow for the closing and opening of the package delivery system.
+
+### Wiring Diagrams
+![Wiring Diagram 1](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/2_elec_diag_1.PNG )
+
+![Wiring Diagram 2](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/3_elec_diag_2.jpg)
+
+![Wiring Diagram 3](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/4_elec_diag_3.PNG )
+
+![Wiring Diagram 4](https://github.com/jong0052/ECE4191Group1/blob/main/readmeimages/5_elec_diag_4.PNG )
+
+
