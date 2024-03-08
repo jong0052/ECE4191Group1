@@ -3,10 +3,6 @@ import cv2
 import time
 
 
-
-
-
-
 def point_correspondance_matrix(x, y, u, v):
     row_1 = np.array([-x, -y, -1, 0, 0, 0, x * u, y * u, u])
     row_2 = np.array([0, 0, 0, -x, -y, -1, x * v, y * v, v])
